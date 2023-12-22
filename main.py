@@ -53,6 +53,8 @@ def main():
         evaluation_strategy="steps",
         eval_steps=1_000,
         max_steps=500_000,
+        per_device_train_batch_size=64,
+        per_device_eval_batch_size=64,
         dataloader_num_workers=4,
         seed=0,
     )
