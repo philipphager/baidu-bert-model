@@ -11,6 +11,8 @@ from src.model import MonoBERT
 
 
 def main():
+    print("Cuda?", torch.cuda.is_available())
+
     wandb.init(project="baidu-bert-test")
 
     directory = Path("/ivi/ilps/datasets/baidu_ultr")
