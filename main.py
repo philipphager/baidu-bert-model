@@ -11,8 +11,6 @@ from src.model import MonoBERT
 
 
 def main():
-    print("Cuda?", torch.cuda.is_available())
-
     wandb.init(project="baidu-bert-test")
 
     directory = Path("/ivi/ilps/datasets/baidu_ultr")
@@ -51,8 +49,8 @@ def main():
         logging_steps=100,
         evaluation_strategy="steps",
         max_steps=500_000,
-        per_device_train_batch_size=32,
-        per_device_eval_batch_size=32,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
         dataloader_num_workers=4,
         save_total_limit=1,
         load_best_model_at_end=True,
