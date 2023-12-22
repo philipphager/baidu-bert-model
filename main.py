@@ -15,10 +15,7 @@ def main():
 
     directory = Path("/ivi/ilps/datasets/baidu_ultr")
     train_files = [f for f in directory.glob("part-*") if f.name != "part-00000.gz"]
-    eval_files = [Path("part-00000.gz")]
-
-    print("Train files:", train_files[:10])
-    print("Eval file:", train_files[:10])
+    eval_files = [directory / Path("part-00000.gz")]
 
     train_dataset = BaiduTrainDataset(
         train_files,
