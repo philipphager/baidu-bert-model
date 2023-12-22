@@ -52,7 +52,7 @@ def main():
         logging_steps=100,
         evaluation_strategy="steps",
         eval_steps=1_000,
-        max_steps=1_000_000,
+        max_steps=500_000,
         dataloader_num_workers=4,
         seed=0,
     )
