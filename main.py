@@ -56,6 +56,8 @@ def main():
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
         dataloader_num_workers=4,
+        save_total_limit=1,
+        load_best_model_at_end=True,
         seed=0,
     )
     trainer = Trainer(
