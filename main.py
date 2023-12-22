@@ -50,7 +50,6 @@ def main():
         report_to=["wandb"],
         run_name="baidu-bert-test",
         evaluation_strategy="steps",
-        eval_steps=5_000,
         max_steps=500_000,
         per_device_train_batch_size=64,
         per_device_eval_batch_size=64,
