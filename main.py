@@ -15,8 +15,10 @@ from src.model import MonoBERT
 def main():
     wandb.init(project="baidu-bert-test")
 
+    # %FIXME: Fix iterable dataset on multiple machines...
+
     train_dataset = BaiduTrainDataset(
-        Path("data/part-00000.gz"),
+        Path("/ivi/ilps/datasets/baidu_ultr/part-00001.gz"),
         MAX_SEQUENCE_LENGTH,
         MASKING_RATE,
         SPECIAL_TOKENS,
@@ -24,7 +26,7 @@ def main():
     )
 
     eval_dataset = BaiduTrainDataset(
-        Path("data/part-00001.gz"),
+        Path("/ivi/ilps/datasets/baidu_ultr/part-00000.gz"),
         MAX_SEQUENCE_LENGTH,
         MASKING_RATE,
         SPECIAL_TOKENS,
@@ -48,6 +50,7 @@ def main():
         evaluation_strategy="steps",
         eval_steps=1_000,
         max_steps=1_000_000,
+        dataloader_num_workers=4,
         seed=0,
     )
     trainer = Trainer(
