@@ -13,8 +13,6 @@ from src.model import MonoBERT
 def main():
     wandb.init(project="baidu-bert-test")
 
-    # %FIXME: Fix iterable dataset on multiple machines...
-
     directory = Path("/ivi/ilps/datasets/baidu_ultr")
     train_files = [f for f in directory.glob("part-*") if f.name != "part-00000.gz"]
     eval_files = [Path("part-00000.gz")]
