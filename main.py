@@ -1,9 +1,7 @@
+import os
 from pathlib import Path
 
 import torch
-from torch.optim import AdamW
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 from transformers import BertConfig, Trainer, TrainingArguments, EarlyStoppingCallback
 
 import wandb
@@ -17,8 +15,15 @@ def main():
 
     # %FIXME: Fix iterable dataset on multiple machines...
 
+    directory = Path("/ivi/ilps/datasets/baidu_ultr")
+    train_files = [f for f in directory.glob("part-*") if f.name != "part-00000.gz"]
+    eval_files = [Path("part-00000.gz")]
+
+    print("Train files:", train_files[:10])
+    print("Eval file:", train_files[:10])
+
     train_dataset = BaiduTrainDataset(
-        Path("/ivi/ilps/datasets/baidu_ultr/part-00001.gz"),
+        train_files,
         MAX_SEQUENCE_LENGTH,
         MASKING_RATE,
         SPECIAL_TOKENS,
@@ -26,7 +31,7 @@ def main():
     )
 
     eval_dataset = BaiduTrainDataset(
-        Path("/ivi/ilps/datasets/baidu_ultr/part-00000.gz"),
+        eval_files,
         MAX_SEQUENCE_LENGTH,
         MASKING_RATE,
         SPECIAL_TOKENS,
