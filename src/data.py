@@ -16,58 +16,73 @@ from src.const import (
 class BaiduTrainDataset(IterableDataset):
     def __init__(
         self,
-        path: Path,
+        files: List[Path],
         max_sequence_length: int,
         masking_rate: float,
         special_tokens: Dict[str, int],
         segment_types: Dict[str, int],
     ):
-        self.path = path
+        self.files = files
         self.max_sequence_length = max_sequence_length
         self.masking_rate = masking_rate
         self.special_tokens = special_tokens
         self.segment_types = segment_types
 
     def __iter__(self) -> Tuple[LongTensor, LongTensor, LongTensor, int]:
-        with gzip.open(self.path, "rb") as f:
-            query = None
+        files = self.get_local_files()
 
-            for i, line in enumerate(f):
-                columns = line.strip(b"\n").split(b"\t")
-                is_query = len(columns) <= 3
+        for file in files:
+            with gzip.open(file, "rb") as f:
+                query = None
 
-                if is_query:
-                    query = columns[QueryColumns.QUERY]
-                else:
-                    title = columns[TrainColumns.TITLE]
-                    abstract = columns[TrainColumns.ABSTRACT]
-                    click = float(columns[TrainColumns.CLICK])
+                for i, line in enumerate(f):
+                    columns = line.strip(b"\n").split(b"\t")
+                    is_query = len(columns) <= 3
 
-                    tokens, token_types = preprocess(
-                        query=query,
-                        title=title,
-                        abstract=abstract,
-                        max_tokens=self.max_sequence_length,
-                        special_tokens=self.special_tokens,
-                        segment_types=self.segment_types,
-                    )
+                    if is_query:
+                        query = columns[QueryColumns.QUERY]
+                    else:
+                        title = columns[TrainColumns.TITLE]
+                        abstract = columns[TrainColumns.ABSTRACT]
+                        click = float(columns[TrainColumns.CLICK])
 
-                    attention_mask = tokens > self.special_tokens["PAD"]
-                    masked_tokens, labels = mask(
-                        tokens,
-                        token_types,
-                        self.segment_types,
-                        self.special_tokens,
-                        self.masking_rate,
-                    )
+                        tokens, token_types = preprocess(
+                            query=query,
+                            title=title,
+                            abstract=abstract,
+                            max_tokens=self.max_sequence_length,
+                            special_tokens=self.special_tokens,
+                            segment_types=self.segment_types,
+                        )
 
-                    yield {
-                        "tokens": masked_tokens,
-                        "attention_mask": attention_mask,
-                        "token_types": token_types,
-                        "labels": labels,
-                        "clicks": click,
-                    }
+                        attention_mask = tokens > self.special_tokens["PAD"]
+                        masked_tokens, labels = mask(
+                            tokens,
+                            token_types,
+                            self.segment_types,
+                            self.special_tokens,
+                            self.masking_rate,
+                        )
+
+                        yield {
+                            "tokens": masked_tokens,
+                            "attention_mask": attention_mask,
+                            "token_types": token_types,
+                            "labels": labels,
+                            "clicks": click,
+                        }
+
+    def get_local_files(self):
+        info = torch.utils.data.get_worker_info()
+
+        if info is None:
+            worker_num = 1
+            worker_id = 0
+        else:
+            worker_num = info.num_workers
+            worker_id = info.id
+
+        return [f for i, f in enumerate(self.files) if i % worker_num == worker_id]
 
 
 def split_idx(text: bytes, offset: int) -> List[int]:
