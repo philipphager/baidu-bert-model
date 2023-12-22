@@ -49,7 +49,6 @@ def main():
         output_dir="output",
         report_to=["wandb"],
         run_name="baidu-bert-test",
-        logging_steps=100,
         evaluation_strategy="steps",
         eval_steps=5_000,
         max_steps=500_000,
