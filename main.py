@@ -24,7 +24,6 @@ def main(config: DictConfig):
 
     directory = Path(config.dataset_directory)
     train_files = [f for f in directory.glob("part-*")]
-
     train_dataset = BaiduTrainDataset(
         files=train_files,
         max_sequence_length=MAX_SEQUENCE_LENGTH,
@@ -36,7 +35,6 @@ def main(config: DictConfig):
 
     bert_config = instantiate(config.bert_config)
     training_arguments = instantiate(config.training_arguments)
-
     model = MonoBERT(bert_config)
 
     trainer = Trainer(
