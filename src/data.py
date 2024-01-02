@@ -10,8 +10,6 @@ from src.const import (
     TrainColumns,
     QueryColumns,
     TOKEN_OFFSET,
-    SPECIAL_TOKENS,
-    SEGMENT_TYPES,
     IGNORE_LABEL_TOKEN,
 )
 
