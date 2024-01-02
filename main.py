@@ -3,10 +3,17 @@ from pathlib import Path
 import hydra
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from transformers import Trainer, EarlyStoppingCallback
+from transformers import Trainer
 
 import wandb
-from src.const import SPECIAL_TOKENS, SEGMENT_TYPES, MASKING_RATE, MAX_SEQUENCE_LENGTH
+from src.const import (
+    SPECIAL_TOKENS,
+    SEGMENT_TYPES,
+    MASKING_RATE,
+    MAX_SEQUENCE_LENGTH,
+    MISSING_TITLE,
+    WHAT_OTHER_PEOPLE_SEARCHED_TITLE,
+)
 from src.data import BaiduTrainDataset
 from src.model import MonoBERT
 
@@ -16,8 +23,7 @@ def main(config: DictConfig):
     wandb.init(project=config.project)
 
     directory = Path(config.dataset_directory)
-    train_files = [f for f in directory.glob("part-*") if f.name != "part-00000.gz"]
-    eval_files = [directory / Path("part-00000.gz")]
+    train_files = [f for f in directory.glob("part-*")]
 
     train_dataset = BaiduTrainDataset(
         train_files,
@@ -25,14 +31,7 @@ def main(config: DictConfig):
         MASKING_RATE,
         SPECIAL_TOKENS,
         SEGMENT_TYPES,
-    )
-
-    eval_dataset = BaiduTrainDataset(
-        eval_files,
-        MAX_SEQUENCE_LENGTH,
-        MASKING_RATE,
-        SPECIAL_TOKENS,
-        SEGMENT_TYPES,
+        ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
     )
 
     bert_config = instantiate(config.bert_config)
@@ -43,9 +42,7 @@ def main(config: DictConfig):
     trainer = Trainer(
         model=model,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
         args=training_arguments,
-        callbacks=[EarlyStoppingCallback(3)],
     )
 
     trainer.train()
