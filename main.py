@@ -1,19 +1,19 @@
-import os
+import torch
 from pathlib import Path
 
-import torch
-from transformers import BertConfig, Trainer, TrainingArguments, EarlyStoppingCallback
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig
+from transformers import Trainer, EarlyStoppingCallback, TrainingArguments
 
-import wandb
 from src.const import SPECIAL_TOKENS, SEGMENT_TYPES, MASKING_RATE, MAX_SEQUENCE_LENGTH
 from src.data import BaiduTrainDataset
 from src.model import MonoBERT
 
 
-def main():
-    wandb.init(project="baidu-bert-test")
-
-    directory = Path("/ivi/ilps/datasets/baidu_ultr")
+@hydra.main(version_base="1.3", config_path="config", config_name="config")
+def main(config: DictConfig):
+    directory = Path(config.dataset_directory)
     train_files = [f for f in directory.glob("part-*") if f.name != "part-00000.gz"]
     eval_files = [directory / Path("part-00000.gz")]
 
@@ -33,34 +33,18 @@ def main():
         SEGMENT_TYPES,
     )
 
-    config = BertConfig(
-        vocab_size=22_000,
-        num_hidden_layers=12,
-        num_attention_heads=12,
-    )
+    TrainingArguments
 
-    model = MonoBERT(config)
+    bert_config = instantiate(config.bert_config)
+    training_arguments = instantiate(config.training_arguments)
+    model = MonoBERT(bert_config)
     torch.compile(model)
 
-    args = TrainingArguments(
-        output_dir="output",
-        report_to=["wandb"],
-        run_name="baidu-bert-test",
-        logging_steps=100,
-        evaluation_strategy="steps",
-        max_steps=500_000,
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=16,
-        dataloader_num_workers=4,
-        save_total_limit=1,
-        load_best_model_at_end=True,
-        seed=0,
-    )
     trainer = Trainer(
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        args=args,
+        args=training_arguments,
         callbacks=[EarlyStoppingCallback(3)],
     )
 

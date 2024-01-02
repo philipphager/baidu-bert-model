@@ -1,0 +1,27 @@
+dataset_directory: "data"
+
+bert_config:
+  _target_: transformers.BertConfig
+  vocab_size: 22_000
+  num_hidden_layers: 12
+  num_attention_heads: 12
+
+training_arguments:
+  _target_: transformers.TrainingArguments
+  output_dir: "output/"
+  report_to: "wandb"
+  logging_steps: 1
+  evaluation_strategy: "steps"
+  eval_steps: 500
+  max_steps: 500_000
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  dataloader_num_workers: 4
+  save_total_limit: 1
+  load_best_model_at_end: True
+  seed: 2024
+
+hydra:
+  job:
+    env_set:
+      WANDB_PROJECT: baidu-bert-model
