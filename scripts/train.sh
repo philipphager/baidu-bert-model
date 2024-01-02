@@ -13,4 +13,4 @@
 source ${HOME}/.bashrc
 mamba activate baidu-bert-model
 
-python main.py
+torchrun --nproc_per_node=2 main.py
