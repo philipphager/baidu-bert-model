@@ -39,7 +39,8 @@ class MonoBERT(BertForPreTraining):
             )
 
         if labels is not None:
-            token_scores = self.mlm_head(outputs[0])
+            sequence_output = outputs[0]
+            token_scores = self.mlm_head(sequence_output)
 
             loss += self.mlm_loss(
                 token_scores.view(-1, self.config.vocab_size),
