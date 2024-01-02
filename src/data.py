@@ -135,7 +135,7 @@ def preprocess(
 
 def mask(
     tokens: LongTensor,
-    token_types: LongTensor,
+    token_types: IntTensor,
     segment_types: Dict[str, int],
     special_tokens: Dict[str, int],
     rate: float,
