@@ -26,11 +26,11 @@ def main(config: DictConfig):
     train_files = [f for f in directory.glob("part-*")]
 
     train_dataset = BaiduTrainDataset(
-        train_files,
-        MAX_SEQUENCE_LENGTH,
-        MASKING_RATE,
-        SPECIAL_TOKENS,
-        SEGMENT_TYPES,
+        files=train_files,
+        max_sequence_length=MAX_SEQUENCE_LENGTH,
+        masking_rate=MASKING_RATE,
+        special_tokens=SPECIAL_TOKENS,
+        segment_types=SEGMENT_TYPES,
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
     )
 
