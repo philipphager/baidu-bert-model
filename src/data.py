@@ -22,12 +22,14 @@ class BaiduTrainDataset(IterableDataset):
         masking_rate: float,
         special_tokens: Dict[str, int],
         segment_types: Dict[str, int],
+        ignored_titles: List[bytes],
     ):
         self.files = files
         self.max_sequence_length = max_sequence_length
         self.masking_rate = masking_rate
         self.special_tokens = special_tokens
         self.segment_types = segment_types
+        self.ignored_titles = set(ignored_titles)
 
     def __iter__(self) -> Tuple[LongTensor, LongTensor, LongTensor, int]:
         files = self.get_local_files()
@@ -46,6 +48,11 @@ class BaiduTrainDataset(IterableDataset):
                         title = columns[TrainColumns.TITLE]
                         abstract = columns[TrainColumns.ABSTRACT]
                         click = float(columns[TrainColumns.CLICK])
+
+                        if title in self.ignored_titles:
+                            # Skipping documents during training based on their titles.
+                            # Used to ignore missing or navigational items.
+                            continue
 
                         tokens, token_types = preprocess(
                             query=query,
