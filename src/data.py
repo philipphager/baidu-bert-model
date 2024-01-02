@@ -3,13 +3,16 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import torch
-from torch import LongTensor
+from torch import LongTensor, IntTensor
 from torch.utils.data import IterableDataset
 
 from src.const import (
     TrainColumns,
     QueryColumns,
     TOKEN_OFFSET,
+    SPECIAL_TOKENS,
+    SEGMENT_TYPES,
+    IGNORE_LABEL_TOKEN,
 )
 
 
@@ -73,6 +76,10 @@ class BaiduTrainDataset(IterableDataset):
                         }
 
     def get_local_files(self):
+        """
+        Select a subset of files to iterate, based on the current worker process.
+        See: https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset
+        """
         info = torch.utils.data.get_worker_info()
 
         if info is None:
@@ -99,7 +106,7 @@ def preprocess(
     max_tokens: int,
     special_tokens: Dict[str, int],
     segment_types: Dict[str, int],
-) -> Tuple[LongTensor, LongTensor]:
+) -> Tuple[LongTensor, IntTensor]:
     """
     Format BERT model input as:
     [CLS] + query + [SEP] + title + [SEP] + content + [SEP] + [PAD]
@@ -137,14 +144,19 @@ def mask(
 ) -> Tuple[LongTensor, LongTensor]:
     tokens = tokens.clone()
 
+    # Mask title and abstract with a given probability, the query is never masked:
     masking_probability = torch.full_like(tokens, fill_value=rate, dtype=torch.float)
-    should_mask = torch.bernoulli(masking_probability).bool()
     is_doc = token_types == segment_types["TEXT"]
     is_not_seperator = tokens != special_tokens["SEP"]
-    mask = should_mask & is_doc & is_not_seperator
+    should_mask = torch.bernoulli(masking_probability).bool()
+    mask = is_doc & is_not_seperator & should_mask
 
+    # Create labels for the MLM prediction task. All non-masked tokens will be
+    # marked as -100 to be ignored by the torch cross entropy loss:
     labels = tokens.clone()
+    labels[~mask] = IGNORE_LABEL_TOKEN
+
+    # Apply token mask:
     tokens[mask] = special_tokens["MASK"]
-    labels[~mask] = -100
 
     return tokens, labels
