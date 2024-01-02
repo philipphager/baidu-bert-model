@@ -10,9 +10,8 @@ training_arguments:
   _target_: transformers.TrainingArguments
   output_dir: "output/"
   report_to: "wandb"
-  logging_steps: 1
+  logging_steps: 100
   evaluation_strategy: "steps"
-  eval_steps: 500
   max_steps: 500_000
   per_device_train_batch_size: 64
   per_device_eval_batch_size: 64
