@@ -5,7 +5,6 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig
 from transformers import Trainer
 
-import wandb
 from src.const import (
     SPECIAL_TOKENS,
     SEGMENT_TYPES,
@@ -20,8 +19,6 @@ from src.model import MonoBERT
 
 @hydra.main(version_base="1.3", config_path="config", config_name="config")
 def main(config: DictConfig):
-    wandb.init(project=config.project)
-
     directory = Path(config.dataset_directory)
     train_files = [f for f in directory.glob("part-*")]
     train_dataset = BaiduTrainDataset(
