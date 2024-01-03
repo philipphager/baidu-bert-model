@@ -31,7 +31,6 @@ def main(config: DictConfig):
     )
 
     bert_config = instantiate(config.bert_config)
-
     print(bert_config)
 
     training_arguments = instantiate(config.training_arguments)
