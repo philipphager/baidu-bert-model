@@ -6,9 +6,16 @@ from transformers import PretrainedConfig, BertForPreTraining
 from transformers.models.bert.modeling_bert import BertLMPredictionHead
 
 
-class MonoBERT(BertForPreTraining):
-    def __init__(self, config: PretrainedConfig):
-        super(MonoBERT, self).__init__(config)
+class BERTConfig(PretrainedConfig):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.do_mlm_task = kwargs.pop("do_mlm_task", False)
+        self.do_ctr_task = kwargs.pop("do_ctr_task", False)
+
+
+class BERT(BertForPreTraining):
+    def __init__(self, config: BERTConfig):
+        super(BERT, self).__init__(config)
         self.cls = nn.Linear(config.hidden_size, 1)
         self.mlm_head = BertLMPredictionHead(config)
         self.mlm_loss = CrossEntropyLoss()
@@ -31,14 +38,16 @@ class MonoBERT(BertForPreTraining):
         )
         query_document_embedding = outputs.pooler_output
 
-        if clicks is not None:
+        if self.config.do_ctr_task:
+            assert clicks is not None, "Expected click labels for CTR task"
             click_scores = self.cls(query_document_embedding).squeeze()
             loss += self.click_loss(
                 click_scores,
                 clicks,
             )
 
-        if labels is not None:
+        if self.config.do_mlm_task:
+            assert clicks is not None, "Expected labels of masked tokens for MLM task"
             sequence_output = outputs[0]
             token_scores = self.mlm_head(sequence_output)
 
