@@ -2,7 +2,7 @@ defaults:
   - _self_
   - model: bert
 
-dataset_directory: "data/"
+dataset_directory: "/scratch-shared/phager/baidu-ultr"
 base_model_path: null
 
 training_arguments:
