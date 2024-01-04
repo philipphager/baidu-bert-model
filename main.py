@@ -34,7 +34,6 @@ def main(config: DictConfig):
 
     training_arguments = instantiate(config.training_arguments)
     model = instantiate(config.model)
-    torch.compile(model)
 
     if config.base_model_path is not None:
         print("Initializing from pre-trained model:", config.base_model_path)
@@ -43,6 +42,7 @@ def main(config: DictConfig):
             config=model.config,
         )
 
+    torch.compile(model)
     trainer = Trainer(
         model=model,
         train_dataset=train_dataset,
