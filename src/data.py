@@ -93,8 +93,8 @@ class BaiduTrainDataset(IterableDataset):
         )
 
         mask = torch.bernoulli(masking_probability).bool()
-        mask[tokens == self.special_tokens["CLS"]] = False
-        mask[tokens == self.special_tokens["SEP"]] = False
+        # Ignore all special tokens in masking procedure:
+        mask[tokens < TOKEN_OFFSET] = False
 
         if not self.mask_query:
             mask[token_types == self.segment_types["QUERY"]] = False
