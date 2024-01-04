@@ -2,7 +2,7 @@ defaults:
   - _self_
   - model: bert
 
-dataset_directory: "/Users/philipphager/Documents/GitHub/baidu-bert-model/data"
+dataset_directory: "data/"
 
 training_arguments:
   _target_: transformers.TrainingArguments
