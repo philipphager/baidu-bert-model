@@ -59,7 +59,7 @@ class CrossEncoder(BertModel):
 
     def __init__(self, config: PretrainedConfig):
         super(CrossEncoder, self).__init__(config)
-        self.cls = nn.Linear(config.hidden_size, 1)
+        self.click_head = nn.Linear(config.hidden_size, 1)
         self.click_loss = nn.BCEWithLogitsLoss()
 
     def forward(
@@ -81,7 +81,7 @@ class CrossEncoder(BertModel):
         query_document_embedding = outputs.pooler_output
 
         if clicks is not None:
-            click_scores = self.cls(query_document_embedding).squeeze()
+            click_scores = self.click_head(query_document_embedding).squeeze()
             loss += self.click_loss(click_scores, clicks)
 
         if labels is not None:
