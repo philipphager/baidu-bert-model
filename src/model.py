@@ -96,6 +96,12 @@ class Condenser(BertModel):
     Unsupervised pre-training technique to encourage BERT to leverage the CLS token.
     """
 
+    def __init__(self, config: PretrainedConfig):
+        super(Condenser, self).__init__(config)
+        self.head_layers = nn.ModuleList(
+            [BertLayer(config) for _ in range(config.head_layers)]
+        )
+
     def forward(
         self,
         tokens: LongTensor,
@@ -109,6 +115,7 @@ class Condenser(BertModel):
             input_ids=tokens,
             attention_mask=attention_mask,
             token_type_ids=token_types,
+            output_hidden_states=True,
             return_dict=True,
         )
 
