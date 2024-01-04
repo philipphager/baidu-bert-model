@@ -48,7 +48,7 @@ class CrossEncoder(BertModel):
     BERT cross-encoder: https://arxiv.org/abs/1910.14424
     Query and document are concatenated in the input. The prediction targets are an MLM
     task and a relevance prediction task using the CLS token. To reproduce the original
-    model released by Baidu, we use clicks as the relevance signal.
+    model released by Baidu, we use clicks or annotations as the relevance signal.
     """
 
     def __init__(self, config: PretrainedConfig):
@@ -87,6 +87,11 @@ class CrossEncoder(BertModel):
 
 
 class Condenser(BertModel):
+    """
+    Condenser setup for dense retrieval: https://arxiv.org/pdf/2104.08253.pdf
+    Unsupervised pre-training technique to encourage BERT to leverage the CLS token.
+    """
+
     def forward(
         self,
         tokens: LongTensor,
