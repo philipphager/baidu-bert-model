@@ -2,7 +2,9 @@ from typing import Optional
 
 import torch
 from torch import nn, LongTensor, FloatTensor, BoolTensor, IntTensor
-from transformers import PretrainedConfig, BertForPreTraining
+from torch.nn import CrossEntropyLoss
+from transformers import PretrainedConfig, BertForPreTraining, BertLayer
+from transformers.models.bert.modeling_bert import BertLMPredictionHead
 
 
 class BertModel(BertForPreTraining):
@@ -10,6 +12,11 @@ class BertModel(BertForPreTraining):
     Basic BERT model pre-trained only on the MLM task (i.e. RoBERTa setup).
     The model can be further fine-tuned in a CrossEncoder or Condenser setup.
     """
+
+    def __init__(self, config: PretrainedConfig):
+        super(BertModel, self).__init__(config)
+        self.mlm_head = BertLMPredictionHead(config)
+        self.mlm_loss = CrossEntropyLoss()
 
     def forward(
         self,
@@ -28,8 +35,7 @@ class BertModel(BertForPreTraining):
         )
         query_document_embedding = outputs.pooler_output
 
-        if self.config.do_mlm_task:
-            assert labels is not None, "Expected labels of masked tokens for MLM task"
+        if labels is not None:
             loss += self.get_mlm_loss(outputs[0], labels)
 
         return loss, query_document_embedding
@@ -74,13 +80,11 @@ class CrossEncoder(BertModel):
         )
         query_document_embedding = outputs.pooler_output
 
-        if self.config.do_ctr_task:
-            assert clicks is not None, "Expected click labels for CTR task"
+        if clicks is not None:
             click_scores = self.cls(query_document_embedding).squeeze()
             loss += self.click_loss(click_scores, clicks)
 
-        if self.config.do_mlm_task:
-            assert labels is not None, "Expected labels of masked tokens for MLM task"
+        if labels is not None:
             loss += self.get_mlm_loss(outputs[0], labels)
 
         return loss, query_document_embedding
@@ -107,25 +111,23 @@ class Condenser(BertModel):
             token_type_ids=token_types,
             return_dict=True,
         )
-        cls_late = outputs.pooler_output
 
-        if self.config.do_condenser_task:
-            cls_late = outputs.hidden_states[-1][:, :1]
-            tokens_early = outputs.hidden_states[self.config.num_early_layers][:, 1:]
-            sequence_output = torch.cat([cls_late, tokens_early], dim=1)
+        cls_late = outputs.hidden_states[-1][:, :1]
+        tokens_early = outputs.hidden_states[self.config.num_early_layers][:, 1:]
+        sequence_output = torch.cat([cls_late, tokens_early], dim=1)
 
-            # Extend initial attention mask to match the number of attention heads:
-            head_attention_mask = self.bert.get_extended_attention_mask(
-                attention_mask, attention_mask.shape, attention_mask.device
-            )
+        # Extend initial attention mask to match the number of attention heads:
+        head_attention_mask = self.bert.get_extended_attention_mask(
+            attention_mask, attention_mask.shape, attention_mask.device
+        )
 
-            for layer in self.head_layers:
-                sequence_output = layer(sequence_output, head_attention_mask)[0]
+        for layer in self.head_layers:
+            sequence_output = layer(sequence_output, head_attention_mask)[0]
 
-            # Compute MLM loss after condenser head layers
-            loss += self.get_mlm_loss(sequence_output, labels)
+        # Compute MLM loss after condenser head layers
+        loss += self.get_mlm_loss(sequence_output, labels)
 
-        if self.config.do_mlm_task:
+        if self.config.do_late_mlm:
             # In addition, add the original mlm
             loss += self.get_mlm_loss(outputs[0], labels)
 
