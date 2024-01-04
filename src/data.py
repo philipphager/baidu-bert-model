@@ -20,6 +20,8 @@ class BaiduTrainDataset(IterableDataset):
         files: List[Path],
         max_sequence_length: int,
         masking_rate: float,
+        mask_query: bool,
+        mask_doc: bool,
         special_tokens: Dict[str, int],
         segment_types: Dict[str, int],
         ignored_titles: List[bytes],
@@ -27,6 +29,8 @@ class BaiduTrainDataset(IterableDataset):
         self.files = files
         self.max_sequence_length = max_sequence_length
         self.masking_rate = masking_rate
+        self.mask_query = mask_query
+        self.mask_doc = mask_doc
         self.special_tokens = special_tokens
         self.segment_types = segment_types
         self.ignored_titles = set(ignored_titles)
@@ -64,13 +68,7 @@ class BaiduTrainDataset(IterableDataset):
                         )
 
                         attention_mask = tokens > self.special_tokens["PAD"]
-                        masked_tokens, labels = mask(
-                            tokens,
-                            token_types,
-                            self.segment_types,
-                            self.special_tokens,
-                            self.masking_rate,
-                        )
+                        masked_tokens, labels = self.mask(tokens, token_types)
 
                         yield {
                             "tokens": masked_tokens,
@@ -79,6 +77,40 @@ class BaiduTrainDataset(IterableDataset):
                             "labels": labels,
                             "clicks": click,
                         }
+
+    def mask(
+        self,
+        tokens: LongTensor,
+        token_types: IntTensor,
+    ) -> Tuple[LongTensor, LongTensor]:
+        tokens = tokens.clone()
+
+        # Mask title and abstract with a given probability, the query is never masked:
+        masking_probability = torch.full_like(
+            tokens,
+            fill_value=self.masking_rate,
+            dtype=torch.float
+        )
+
+        mask = torch.bernoulli(masking_probability).bool()
+        mask[tokens == self.special_tokens["CLS"]] = False
+        mask[tokens == self.special_tokens["SEP"]] = False
+
+        if not self.mask_query:
+            mask[token_types == self.segment_types["QUERY"]] = False
+
+        if not self.mask_doc:
+            mask[token_types == self.segment_types["TEXT"]] = False
+
+        # Create labels for the MLM prediction task. All non-masked tokens will be
+        # marked as -100 to be ignored by the torch cross entropy loss:
+        labels = tokens.clone()
+        labels[~mask] = IGNORE_LABEL_TOKEN
+
+        # Apply token mask:
+        tokens[mask] = self.special_tokens["MASK"]
+
+        return tokens, labels
 
     def get_local_files(self):
         """
@@ -138,30 +170,3 @@ def preprocess(
     token_types = torch.tensor(token_types, dtype=torch.int)
 
     return tokens, token_types
-
-
-def mask(
-    tokens: LongTensor,
-    token_types: IntTensor,
-    segment_types: Dict[str, int],
-    special_tokens: Dict[str, int],
-    rate: float,
-) -> Tuple[LongTensor, LongTensor]:
-    tokens = tokens.clone()
-
-    # Mask title and abstract with a given probability, the query is never masked:
-    masking_probability = torch.full_like(tokens, fill_value=rate, dtype=torch.float)
-    is_doc = token_types == segment_types["TEXT"]
-    is_not_seperator = tokens != special_tokens["SEP"]
-    should_mask = torch.bernoulli(masking_probability).bool()
-    mask = is_doc & is_not_seperator & should_mask
-
-    # Create labels for the MLM prediction task. All non-masked tokens will be
-    # marked as -100 to be ignored by the torch cross entropy loss:
-    labels = tokens.clone()
-    labels[~mask] = IGNORE_LABEL_TOKEN
-
-    # Apply token mask:
-    tokens[mask] = special_tokens["MASK"]
-
-    return tokens, labels
