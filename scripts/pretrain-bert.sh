@@ -13,4 +13,4 @@
 source ${HOME}/.bashrc
 mamba activate baidu-ultr-features
 
-torchrun --nproc_per_node=4 main.py +training_arguments.run_name=bert-12l-12h-mlm
+torchrun --nproc_per_node=4 main.py model=bert +training_arguments.run_name=bert-12l-12h-mlm
