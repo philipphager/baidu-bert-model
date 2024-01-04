@@ -107,7 +107,7 @@ class Condenser(BertModel):
         if self.config.do_condenser_task:
             cls_late = outputs.hidden_states[-1][:, :1]
             tokens_early = outputs.hidden_states[self.config.num_early_layers][:, 1:]
-            head_sequence_output = torch.cat([cls_late, tokens_early], dim=1)
+            sequence_output = torch.cat([cls_late, tokens_early], dim=1)
 
             # Extend initial attention mask to match the number of attention heads:
             head_attention_mask = self.bert.get_extended_attention_mask(
@@ -115,12 +115,10 @@ class Condenser(BertModel):
             )
 
             for layer in self.head_layers:
-                head_sequence_output = layer(head_sequence_output, head_attention_mask)[
-                    0
-                ]
+                sequence_output = layer(sequence_output, head_attention_mask)[0]
 
             # Compute MLM loss after condenser head layers
-            loss += self.get_mlm_loss(head_sequence_output, labels)
+            loss += self.get_mlm_loss(sequence_output, labels)
 
         if self.config.do_mlm_task:
             # In addition, add the original mlm
