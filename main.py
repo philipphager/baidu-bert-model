@@ -14,7 +14,6 @@ from src.const import (
     WHAT_OTHER_PEOPLE_SEARCHED_TITLE,
 )
 from src.data import BaiduTrainDataset
-from src.model import MonoBERT
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="config")
@@ -30,11 +29,8 @@ def main(config: DictConfig):
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
     )
 
-    bert_config = instantiate(config.bert_config)
-    print(bert_config)
-
     training_arguments = instantiate(config.training_arguments)
-    model = MonoBERT(bert_config)
+    model = instantiate(config.model)
 
     trainer = Trainer(
         model=model,
