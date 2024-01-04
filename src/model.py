@@ -6,16 +6,22 @@ from transformers import PretrainedConfig, BertForPreTraining
 from transformers.models.bert.modeling_bert import BertLMPredictionHead
 
 
-class BERTConfig(PretrainedConfig):
+class MonoBERTConfig(PretrainedConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.do_mlm_task = kwargs.pop("do_mlm_task", False)
         self.do_ctr_task = kwargs.pop("do_ctr_task", False)
 
 
-class BERT(BertForPreTraining):
-    def __init__(self, config: BERTConfig):
-        super(BERT, self).__init__(config)
+class MonoBERT(BertForPreTraining):
+    """
+    BERT cross-encoder: https://arxiv.org/abs/1910.14424
+    Query and document are concatenated in the input. The prediction targets are an MLM
+    task and a relevance prediction task using the CLS token. To reproduce the original
+    model released by Baidu, we use clicks as the relevance signal.
+    """
+    def __init__(self, config: MonoBERTConfig):
+        super(MonoBERT, self).__init__(config)
         self.cls = nn.Linear(config.hidden_size, 1)
         self.mlm_head = BertLMPredictionHead(config)
         self.mlm_loss = CrossEntropyLoss()
