@@ -15,7 +15,7 @@ mamba activate baidu-ultr-features
 
 model="bert-12l-12h-mlm-ctr"
 
-torchrun --nproc_per_node=4 \
+torchrun --nproc_per_node=4 main.py \
   model=cross-encoder \
   mask_query=False \
   mask_doc=True \
