@@ -1,7 +1,7 @@
-import torch
 from pathlib import Path
 
 import hydra
+import torch
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from transformers import Trainer
@@ -25,8 +25,8 @@ def main(config: DictConfig):
         files=train_files,
         max_sequence_length=MAX_SEQUENCE_LENGTH,
         masking_rate=MASKING_RATE,
-        mask_query=True,
-        mask_doc=True,
+        mask_query=config.mask_query,
+        mask_doc=config.mask_doc,
         special_tokens=SPECIAL_TOKENS,
         segment_types=SEGMENT_TYPES,
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
