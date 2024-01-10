@@ -13,10 +13,10 @@
 source ${HOME}/.bashrc
 mamba activate baidu-ultr-features
 
-model="bert-12l-12h-mlm-ctr"
+model="retro-mae-12l-12h"
 
 torchrun --nproc_per_node=4 main.py \
-  data=base \
-  model=cross-encoder \
+  data=retro-mae \
+  model=retro-mae \
   training_arguments.output_dir="output/${model}" \
   +training_arguments.run_name="${model}"
