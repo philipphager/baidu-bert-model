@@ -1,5 +1,6 @@
 """
-The codes are modified based on huggingface transformers library.
+Original decoder from RetroMAE:
+https://github.com/staoxiao/RetroMAE/blob/master/src/pretrain/enhancedDecoder.py
 """
 
 import math

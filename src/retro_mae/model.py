@@ -4,8 +4,8 @@ import torch
 from torch import LongTensor, BoolTensor
 from transformers import PretrainedConfig
 
-from src.decoder import BertLayerForDecoder
 from src.model import BertModel
+from src.retro_mae.decoder import BertLayerForDecoder
 
 
 class RetroMAE(BertModel):
