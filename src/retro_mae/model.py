@@ -1,7 +1,7 @@
 from typing import Optional
 
 import torch
-from torch import LongTensor, BoolTensor
+from torch import LongTensor, BoolTensor, FloatTensor
 from transformers import PretrainedConfig
 
 from src.model import BertModel
@@ -53,7 +53,7 @@ class RetroMAE(BertModel):
             decoder_embeddings = torch.cat([encoder_cls, decoder_embeddings], dim=1)
 
             # EQ. 4: https://aclanthology.org/2022.emnlp-main.35.pdf
-            position_embeddings = self._get_position_embeddings(decoder_tokens)
+            position_embeddings = self._get_position_embeddings(decoder_tokens.size(1))
             query = position_embeddings + encoder_cls
 
             matrix_attention_mask = self.bert.get_extended_attention_mask(
@@ -72,6 +72,6 @@ class RetroMAE(BertModel):
 
         return loss, encoder_cls
 
-    def _get_position_embeddings(self, tokens: LongTensor):
-        position_ids = self.bert.embeddings.position_ids[:, : tokens.size(1)]
+    def _get_position_embeddings(self, n_tokens: int) -> FloatTensor:
+        position_ids = self.bert.embeddings.position_ids[:, :n_tokens]
         return self.bert.embeddings.position_embeddings(position_ids)
