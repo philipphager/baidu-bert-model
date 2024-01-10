@@ -14,7 +14,7 @@ from src.const import (
 )
 
 
-class BaiduTrainDataset(IterableDataset):
+class CrossEncoderPretrainDataset(IterableDataset):
     def __init__(
         self,
         files: List[Path],
@@ -87,9 +87,7 @@ class BaiduTrainDataset(IterableDataset):
 
         # Mask title and abstract with a given probability, the query is never masked:
         masking_probability = torch.full_like(
-            tokens,
-            fill_value=self.masking_rate,
-            dtype=torch.float
+            tokens, fill_value=self.masking_rate, dtype=torch.float
         )
 
         mask = torch.bernoulli(masking_probability).bool()
