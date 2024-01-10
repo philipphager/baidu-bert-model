@@ -6,3 +6,5 @@ wandb
 data
 output
 outputs
+
+*.pyc
