@@ -1,7 +1,8 @@
 from typing import Optional
 
 import torch
-from torch import nn, LongTensor, FloatTensor, BoolTensor, IntTensor
+from torch import LongTensor, FloatTensor, BoolTensor, IntTensor
+from torch import nn
 from torch.nn import CrossEntropyLoss
 from transformers import PretrainedConfig, BertForPreTraining, BertLayer
 from transformers.models.bert.modeling_bert import BertLMPredictionHead
