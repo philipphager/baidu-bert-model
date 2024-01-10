@@ -9,31 +9,28 @@ from transformers import Trainer
 from src.const import (
     SPECIAL_TOKENS,
     SEGMENT_TYPES,
-    MASKING_RATE,
     MAX_SEQUENCE_LENGTH,
     MISSING_TITLE,
     WHAT_OTHER_PEOPLE_SEARCHED_TITLE,
 )
-from src.data import BaiduTrainDataset
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="config")
 def main(config: DictConfig):
     directory = Path(config.dataset_directory)
     train_files = [f for f in directory.glob("part-*")]
-    train_dataset = BaiduTrainDataset(
+
+    train_dataset = instantiate(
+        config.data,
         files=train_files,
         max_sequence_length=MAX_SEQUENCE_LENGTH,
-        masking_rate=MASKING_RATE,
-        mask_query=config.mask_query,
-        mask_doc=config.mask_doc,
         special_tokens=SPECIAL_TOKENS,
         segment_types=SEGMENT_TYPES,
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
     )
 
-    training_arguments = instantiate(config.training_arguments)
     model = instantiate(config.model)
+    training_arguments = instantiate(config.training_arguments)
 
     if config.base_model_path is not None:
         print("Initializing from pre-trained model:", config.base_model_path)

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import torch
-from torch import LongTensor, IntTensor
+from torch import LongTensor, IntTensor, BoolTensor
 from torch.utils.data import IterableDataset
 
 from src.const import (
@@ -14,23 +14,23 @@ from src.const import (
 )
 
 
-class CrossEncoderPretrainDataset(IterableDataset):
+class RetroMAEPretrainDataset(IterableDataset):
     def __init__(
         self,
         files: List[Path],
         max_sequence_length: int,
-        masking_rate: float,
-        mask_query: bool,
-        mask_doc: bool,
+        encoder_masking_rate: float,
+        decoder_masking_rate: float,
+        decoder_attention_rate: float,
         special_tokens: Dict[str, int],
         segment_types: Dict[str, int],
         ignored_titles: List[bytes],
     ):
         self.files = files
         self.max_sequence_length = max_sequence_length
-        self.masking_rate = masking_rate
-        self.mask_query = mask_query
-        self.mask_doc = mask_doc
+        self.encoder_masking_rate = encoder_masking_rate
+        self.decoder_masking_rate = decoder_masking_rate
+        self.decoder_attention_rate = decoder_attention_rate
         self.special_tokens = special_tokens
         self.segment_types = segment_types
         self.ignored_titles = set(ignored_titles)
@@ -67,38 +67,42 @@ class CrossEncoderPretrainDataset(IterableDataset):
                             segment_types=self.segment_types,
                         )
 
-                        attention_mask = tokens > self.special_tokens["PAD"]
-                        masked_tokens, labels = self.mask(tokens, token_types)
+                        encoder_attention_mask = tokens > self.special_tokens["PAD"]
+                        decoder_attention_mask = self.position_based_attention_mask(
+                            tokens, self.decoder_attention_rate
+                        )
+
+                        encoder_tokens, encoder_labels = self.mask(
+                            tokens, self.encoder_masking_rate
+                        )
+                        decoder_tokens, decoder_labels = self.mask(
+                            tokens, self.decoder_masking_rate
+                        )
 
                         yield {
-                            "tokens": masked_tokens,
-                            "attention_mask": attention_mask,
-                            "token_types": token_types,
-                            "labels": labels,
-                            "clicks": click,
+                            "encoder_tokens": encoder_tokens,
+                            "encoder_attention_mask": encoder_attention_mask,
+                            "encoder_labels": encoder_labels,
+                            "decoder_tokens": decoder_tokens,
+                            "decoder_attention_mask": decoder_attention_mask,
+                            "decoder_labels": decoder_labels,
                         }
 
     def mask(
         self,
         tokens: LongTensor,
-        token_types: IntTensor,
+        masking_rate: float,
     ) -> Tuple[LongTensor, LongTensor]:
         tokens = tokens.clone()
 
         # Mask title and abstract with a given probability, the query is never masked:
         masking_probability = torch.full_like(
-            tokens, fill_value=self.masking_rate, dtype=torch.float
+            tokens, fill_value=masking_rate, dtype=torch.float
         )
 
         mask = torch.bernoulli(masking_probability).bool()
         # Ignore all special tokens in masking procedure:
         mask[tokens < TOKEN_OFFSET] = False
-
-        if not self.mask_query:
-            mask[token_types == self.segment_types["QUERY"]] = False
-
-        if not self.mask_doc:
-            mask[token_types == self.segment_types["TEXT"]] = False
 
         # Create labels for the MLM prediction task. All non-masked tokens will be
         # marked as -100 to be ignored by the torch cross entropy loss:
@@ -109,6 +113,43 @@ class CrossEncoderPretrainDataset(IterableDataset):
         tokens[mask] = self.special_tokens["MASK"]
 
         return tokens, labels
+
+    def position_based_attention_mask(
+        self,
+        tokens: torch.LongTensor,
+        attention_rate: float,
+    ) -> BoolTensor:
+        """
+        Sample a token x token matrix indicating which tokens can be attended during
+        decoding. The idea is to give each token a slightly different context
+        to enhance the decoder training:
+
+        1. All tokens can attend the CLS
+        2. No token can attend itself
+        3. Padding cannot be attended.
+
+        The % of tokens that can be attended is its own hyperparameter.
+        RetroMAE defines this implicitly based on the encoder masking rate:
+        https://github.com/staoxiao/RetroMAE/blob/67a06a2ade9065c7d7cd6c2934f9a745b8fcae2b/src/pretrain/data.py#L47
+        """
+        attention_rate = torch.full(
+            size=(len(tokens), len(tokens)),
+            fill_value=attention_rate,
+        )
+        # Sample attention mask, tokens marked as 1 can be attended:
+        attention_mask = torch.bernoulli(attention_rate)
+
+        # Tokens shall not attend to themselves:
+        attention_mask.fill_diagonal_(0)
+        # All tokens can access to the CLS token in first position:
+        attention_mask[0, :] = 1
+        attention_mask[:, 0] = 1
+        # Padding shall not be attended:
+        padding = tokens == self.special_tokens["PAD"]
+        attention_mask[padding, :] = 0
+        attention_mask[:, padding] = 0
+
+        return attention_mask.bool()
 
     def get_local_files(self):
         """

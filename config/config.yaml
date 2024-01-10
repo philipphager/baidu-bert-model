@@ -1,11 +1,10 @@
 defaults:
   - _self_
-  - model: bert
+  - data: retro-mae
+  - model: retro-mae
 
 dataset_directory: "/scratch-shared/phager/baidu-ultr"
 base_model_path: null
-mask_query: True
-mask_doc: True
 
 training_arguments:
   _target_: transformers.TrainingArguments
