@@ -1,5 +1,6 @@
 defaults:
   - _self_
+  - data: base
   - model: bert
 
 dataset_directory: "/scratch-shared/phager/baidu-ultr"
