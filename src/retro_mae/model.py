@@ -9,6 +9,14 @@ from src.retro_mae.decoder import BertLayerForDecoder
 
 
 class RetroMAE(BertModel):
+    """
+    RetroMAE setup for dense retrieval: https://arxiv.org/abs/2205.12035
+    Unsupervised pre-training technique using:
+    1. A shallow decoder to reconstruct input tokens from the encoder's CLS token
+    2. Asymmetric masking rates with an aggressive masking rate for the decoder input
+    3. A position-based attention matrix sampled for each decoded token
+    """
+
     def __init__(self, config: PretrainedConfig):
         super(RetroMAE, self).__init__(config)
         self.decoder_embeddings = self.bert.embeddings
