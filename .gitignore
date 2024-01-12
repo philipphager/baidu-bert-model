@@ -8,3 +8,7 @@ output
 outputs
 
 *.pyc
+pyproject.toml
+poetry.lock
+multirun/
+scripts/slurm.sh
