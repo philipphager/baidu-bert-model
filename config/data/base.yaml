@@ -1,5 +1,5 @@
 _target_: src.data.CrossEncoderPretrainDataset
 
-masking_rate: 0.4
+masking_rate: 0.3
 mask_query: False
 mask_doc: True

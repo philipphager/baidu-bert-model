@@ -46,7 +46,7 @@ def main(config: DictConfig):
         args=training_arguments,
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint = config.training_arguments.resume_from_checkpoint)
 
 
 if __name__ == "__main__":
