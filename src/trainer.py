@@ -1,19 +1,19 @@
-
 import enum
 import logging
-from typing import Tuple
 from functools import partial
+from typing import Tuple
 
-import jax
 import flax
+import jax
 import optax
 import wandb
-from flax.training.train_state import TrainState
 from flax.training.common_utils import shard
+from flax.training.train_state import TrainState
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 logger = logging.getLogger("rich")
+
 
 class Stage(str, enum.Enum):
     TRAIN = "train"
@@ -30,7 +30,9 @@ class Trainer:
         **kwargs,
     ):
         self.seed = seed
-        self.optimizer = optax.adamw(learning_rate=5e-5, b1=0.9, b2=0.98, eps=1e-8, weight_decay=weight_decay)
+        self.optimizer = optax.adamw(
+            learning_rate=5e-5, b1=0.9, b2=0.98, eps=1e-8, weight_decay=weight_decay
+        )
         self.progress_bar = progress_bar
 
     def train(
@@ -52,16 +54,28 @@ class Trainer:
             state, loss = self._train_step(model, state, shard(batch))
 
             if step % 1000 == 0:
-                wandb.log({"train/loss": jax.device_get(loss.mean()), "train/global_step": step})
+                wandb.log(
+                    {
+                        "train/loss": jax.device_get(loss.mean()),
+                        "train/global_step": step,
+                    }
+                )
 
-        return state        
+        return state
 
-    @partial(jax.pmap, axis_name="batch", in_axes = (None, None, 0, 0), static_broadcasted_argnums = (0,1))
-    def _train_step(self, model, state: TrainState, batch: dict) -> Tuple[TrainState, jax.Array]:
+    @partial(
+        jax.pmap,
+        axis_name="batch",
+        in_axes=(None, None, 0, 0),
+        static_broadcasted_argnums=(0, 1),
+    )
+    def _train_step(
+        self, model, state: TrainState, batch: dict
+    ) -> Tuple[TrainState, jax.Array]:
         def loss_fn(params):
-            outputs, _ = state.apply_fn(batch, params = params)
+            outputs, _ = state.apply_fn(batch, params=params)
             return model.get_training_loss(outputs, batch)
 
         loss, grads = jax.value_and_grad(loss_fn)(state.params)
-        state = state.apply_gradients(grads=jax.lax.pmean(grads, axis_name = "batch"))
-        return state, jax.lax.pmean(loss, axis_name = "batch")
+        state = state.apply_gradients(grads=jax.lax.pmean(grads, axis_name="batch"))
+        return state, jax.lax.pmean(loss, axis_name="batch")

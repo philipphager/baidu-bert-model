@@ -1,16 +1,15 @@
 from pathlib import Path
 
 import hydra
-from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
-from src.trainer import Trainer
-
-import torch
 import jax
-from jax.tree_util import tree_map
 import numpy as np
-import wandb
+import torch
+from hydra.utils import instantiate
+from jax.tree_util import tree_map
+from omegaconf import DictConfig, OmegaConf
+from torch.utils.data import DataLoader
 
+import wandb
 from src.const import (
     SPECIAL_TOKENS,
     SEGMENT_TYPES,
@@ -18,6 +17,7 @@ from src.const import (
     MISSING_TITLE,
     WHAT_OTHER_PEOPLE_SEARCHED_TITLE,
 )
+from src.trainer import Trainer
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="config")
@@ -36,16 +36,15 @@ def main(config: DictConfig):
         segment_types=SEGMENT_TYPES,
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
     )
-    
-    numpy_collate = lambda batch: tree_map(np.asarray, torch.utils.data.default_collate(batch))
+
+    np_collate = lambda batch: tree_map(np.asarray, torch.utils.data.default_collate(batch))
     batch_size = config.training_arguments.per_device_train_batch_size * jax.device_count()
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size, collate_fn = numpy_collate)
+    train_loader = DataLoader(train_dataset, batch_size, collate_fn=np_collate)
 
     model = instantiate(config.model)
 
     if config.base_model_path is not None:
         print("Initializing from pre-trained model:", config.base_model_path)
-        model = model.from_pretrained(
             config.base_model_path,
             config=model.config,
         )
