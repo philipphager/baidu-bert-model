@@ -60,7 +60,7 @@ def main(config: DictConfig):
         name=config.run_name,
         save_code=True,
     )
-    trainer.train(model, train_loader, config.training_arguments.seed)
+    trainer.train(model, train_loader)
 
 
 if __name__ == "__main__":
