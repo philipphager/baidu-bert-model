@@ -26,6 +26,7 @@ class Trainer:
         self,
         seed: int,
         weight_decay: float,
+        log_metrics: bool,
         progress_bar: bool = True,
         **kwargs,
     ):
@@ -34,6 +35,7 @@ class Trainer:
             learning_rate=5e-5, b1=0.9, b2=0.98, eps=1e-8, weight_decay=weight_decay
         )
         self.progress_bar = progress_bar
+        self.log_metrics = log_metrics
 
     def train(
         self,
@@ -55,7 +57,7 @@ class Trainer:
             state, loss = self._train_step(model, state, shard(batch))
             mean_loss += loss.mean()
 
-            if step % 1000 == 0:
+            if self.log_metrics and step % 1000 == 0:
                 wandb.log(
                     {
                         "train/loss": jax.device_get(mean_loss / min(step + 1, 1000)),

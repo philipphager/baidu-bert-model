@@ -52,14 +52,15 @@ def main(config: DictConfig):
 
     trainer = Trainer(**config.training_arguments)
 
-    wandb.init(
-        project=config.wandb_project_name,
-        entity=config.wandb_entity,
-        sync_tensorboard=False,
-        config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
-        name=config.run_name,
-        save_code=True,
-    )
+    if config.training_arguments.log_metrics:
+        wandb.init(
+            project=config.wandb_project_name,
+            entity=config.wandb_entity,
+            sync_tensorboard=False,
+            config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+            name=config.run_name,
+            save_code=True,
+        )
     trainer.train(model, train_loader)
 
 
