@@ -45,6 +45,7 @@ def main(config: DictConfig):
 
     if config.base_model_path is not None:
         print("Initializing from pre-trained model:", config.base_model_path)
+        model = model.from_pretrained(
             config.base_model_path,
             config=model.config,
         )
