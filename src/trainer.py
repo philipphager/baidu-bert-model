@@ -37,7 +37,7 @@ class Trainer:
         self,
         model,
         train_loader: DataLoader,
-        seed: int = 2024,
+        seed: int,
     ) -> TrainState:
         key = jax.random.PRNGKey(seed)
         key, init_key = jax.random.split(key, 2)
@@ -52,7 +52,8 @@ class Trainer:
         for step, batch in enumerate(tqdm(train_loader, disable=not self.progress_bar)):
             state, loss = self._train_step(model, state, shard(batch))
 
-            wandb.log({"train/loss": jax.device_get(loss), "train/global_step": step * len(batch["tokens"])}, step=step)
+            if step % 1000 == 0:
+                wandb.log({"train/loss": jax.device_get(loss.mean()), "train/global_step": step})
 
         return state        
 
