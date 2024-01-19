@@ -80,7 +80,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
             tokens, fill_value=self.masking_rate, dtype=float
         )
 
-        mask = np.random.binomial(1, p = masking_probability)
+        mask = np.random.binomial(1, p=masking_probability).astype(bool)
         # Ignore all special tokens in masking procedure:
         mask[tokens < TOKEN_OFFSET] = False
 
