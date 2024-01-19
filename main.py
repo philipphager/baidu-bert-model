@@ -9,6 +9,10 @@ from jax.tree_util import tree_map
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 
+import flax
+from flax.training import checkpoints
+flax.config.update('flax_use_orbax_checkpointing', False)
+
 import wandb
 from src.const import (
     SPECIAL_TOKENS,
@@ -61,7 +65,12 @@ def main(config: DictConfig):
             name=config.run_name,
             save_code=True,
         )
-    trainer.train(model, train_loader)
+    trained_state = trainer.train(model, train_loader)
+    checkpoints.save_checkpoint(ckpt_dir=config.training_arguments.output_dir + config.run_name,
+                            target=trained_state,
+                            step=0,
+                            overwrite=True,
+                            keep=2)
 
 
 if __name__ == "__main__":

@@ -58,7 +58,7 @@ class Trainer:
         for step, batch in enumerate(tqdm(train_loader, disable=not self.progress_bar)):
             if step == self.max_steps:
                 break
-            
+
             state, loss = self._train_step(model, state, shard(batch))
             mean_loss += loss.mean()
 
@@ -71,7 +71,7 @@ class Trainer:
                 )
                 mean_loss = jax.numpy.zeros(1)
 
-        return state
+        return flax.jax_utils.unreplicate(state)
 
     @partial(
         jax.pmap,
