@@ -26,6 +26,7 @@ class Trainer:
         self,
         seed: int,
         weight_decay: float,
+        max_steps: int,
         log_metrics: bool,
         progress_bar: bool = True,
         **kwargs,
@@ -34,6 +35,7 @@ class Trainer:
         self.optimizer = optax.adamw(
             learning_rate=5e-5, b1=0.9, b2=0.98, eps=1e-8, weight_decay=weight_decay
         )
+        self.max_steps = max_steps
         self.progress_bar = progress_bar
         self.log_metrics = log_metrics
 
@@ -54,6 +56,9 @@ class Trainer:
         mean_loss = jax.numpy.zeros(1)
 
         for step, batch in enumerate(tqdm(train_loader, disable=not self.progress_bar)):
+            if step == self.max_steps:
+                break
+            
             state, loss = self._train_step(model, state, shard(batch))
             mean_loss += loss.mean()
 
