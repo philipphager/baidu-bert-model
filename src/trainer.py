@@ -49,17 +49,20 @@ class Trainer:
             tx=self.optimizer,
         )
         state = flax.jax_utils.replicate(state)
+        mean_loss = jax.numpy.zeros(1)
 
         for step, batch in enumerate(tqdm(train_loader, disable=not self.progress_bar)):
             state, loss = self._train_step(model, state, shard(batch))
+            mean_loss += loss.mean()
 
             if step % 1000 == 0:
                 wandb.log(
                     {
-                        "train/loss": jax.device_get(loss.mean()),
+                        "train/loss": jax.device_get(mean_loss / min(step + 1, 1000)),
                         "train/global_step": step,
                     }
                 )
+                mean_loss = jax.numpy.zeros(1)
 
         return state
 

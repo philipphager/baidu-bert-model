@@ -3,7 +3,6 @@ from typing import Tuple, Any, Dict
 import flax.linen as nn
 import jax
 import optax
-from flax.training.common_utils import onehot
 from jax import Array
 from jax.random import KeyArray
 from transformers import FlaxBertForPreTraining
@@ -20,7 +19,7 @@ class BertModel(FlaxBertForPreTraining):
     def __init__(self, config: BertConfig):
         super(BertModel, self).__init__(config)
         self.mlm_head = FlaxBertLMPredictionHead(config=config)
-        self.mlm_loss = optax.softmax_cross_entropy
+        self.mlm_loss = optax.softmax_cross_entropy_with_integer_labels
 
     def forward(
         self,
@@ -68,7 +67,7 @@ class BertModel(FlaxBertForPreTraining):
 
         # Tokens with label -100 are ignored during the CE computation
         label_mask = jax.numpy.where(labels != -100, 1.0, 0.0)
-        loss = self.mlm_loss(logits, onehot(labels, logits.shape[-1])) * label_mask
+        loss = self.mlm_loss(logits, labels) * label_mask
 
         return loss.sum() / label_mask.sum()
 
