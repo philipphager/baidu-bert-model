@@ -3,6 +3,7 @@ from typing import Tuple, Any, Dict
 import flax.linen as nn
 import jax
 import optax
+from flax.training.common_utils import onehot
 from jax import Array
 from jax.random import KeyArray
 from transformers import FlaxBertForPreTraining
@@ -19,7 +20,7 @@ class BertModel(FlaxBertForPreTraining):
     def __init__(self, config: BertConfig):
         super(BertModel, self).__init__(config)
         self.mlm_head = FlaxBertLMPredictionHead(config=config)
-        self.mlm_loss = optax.softmax_cross_entropy_with_integer_labels
+        self.mlm_loss = optax.softmax_cross_entropy
 
     def forward(
         self,
@@ -58,11 +59,18 @@ class BertModel(FlaxBertForPreTraining):
             "mlm_head": mlm_params,
         }
 
-    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
-        return self.mlm_loss(
-            outputs["logits"].reshape(-1, self.config.vocab_size),
-            batch["labels"].reshape(-1),
-        ).mean()
+    def get_training_loss(self, outputs: Dict, batch: Dict) -> Array:
+        return self.get_mlm_loss(outputs, batch)
+
+    def get_mlm_loss(self, outputs: Dict, batch: Dict) -> Array:
+        logits = outputs["logits"]
+        labels = batch["labels"]
+
+        # Tokens with label -100 are ignored during the CE computation
+        label_mask = jax.numpy.where(labels != -100, 1.0, 0.0)
+        loss = self.mlm_loss(logits, onehot(labels, logits.shape[-1])) * label_mask
+
+        return loss.sum() / label_mask.sum()
 
 
 class CrossEncoder(BertModel):
@@ -122,10 +130,7 @@ class CrossEncoder(BertModel):
         }
 
     def get_training_loss(self, outputs: dict, batch: dict) -> Array:
-        mlm_loss = self.mlm_loss(
-            outputs["logits"].reshape(-1, self.config.vocab_size),
-            batch["labels"].reshape(-1),
-        ).mean()
+        mlm_loss = self.get_mlm_loss(outputs, batch)
         click_loss = self.click_loss(
             outputs["click_probs"].reshape(-1),
             batch["clicks"].reshape(-1),
