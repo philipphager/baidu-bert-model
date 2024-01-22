@@ -135,3 +135,38 @@ class CrossEncoder(BertModel):
             batch["clicks"].reshape(-1),
         ).mean()
         return mlm_loss + click_loss
+
+class PBMCrossEncoder(CrossEncoder):
+    """
+    BERT cross-encoder: https://arxiv.org/abs/1910.14424
+    Query and document are concatenated in the input. The prediction targets are an MLM
+    task and a relevance prediction task using the CLS token. To reproduce the original
+    model released by Baidu, we use clicks or annotations as the relevance signal.
+    """
+
+    def __init__(self, config: BertConfig):
+        super(PBMCrossEncoder, self).__init__(config)
+        self.propensities = nn.Embed(25, 1)
+
+    def forward(
+        self,
+        batch: Dict,
+        params: Dict,
+    ) -> Tuple[Dict, Any]:
+        outputs, query_document_embedding = super(PBMCrossEncoder, self).forward(batch, params)
+        outputs["exam"] = self.propensities.apply(params["propensities"], batch["positions"])
+        return outputs, query_document_embedding
+
+    def init(self, key: KeyArray, batch: Dict) -> Dict:
+        ce_key, prop_key = jax.random.split(key, 2)
+        params = super(PBMCrossEncoder, self).init(ce_key, batch)
+        params["propensities"] = self.propensities.init(prop_key, batch["positions"])
+        return params
+
+    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+        click_loss = self.click_loss(
+            outputs["click_probs"].reshape(-1) + outputs["exam"].reshape(-1),
+            batch["clicks"].reshape(-1),
+        ).mean()
+        return mlm_loss + click_loss

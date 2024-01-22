@@ -42,6 +42,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
                         title = columns[TrainColumns.TITLE]
                         abstract = columns[TrainColumns.ABSTRACT]
                         click = float(columns[TrainColumns.CLICK])
+                        position = int(columns[TrainColumns.POS])
 
                         if title in set(self.ignored_titles):
                             # Skipping documents during training based on their titles.
@@ -66,6 +67,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
                             "token_types": token_types,
                             "labels": labels,
                             "clicks": click,
+                            "positions": position,
                         }
 
     def mask(
