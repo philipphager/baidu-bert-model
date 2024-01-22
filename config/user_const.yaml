@@ -1,0 +1,4 @@
+
+dataset_directory: "/path/to/dataset/"
+output_dir: "output/"
+dataloader_num_workers: 6

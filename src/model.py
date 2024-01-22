@@ -140,8 +140,8 @@ class PBMCrossEncoder(CrossEncoder):
     """
     BERT cross-encoder: https://arxiv.org/abs/1910.14424
     Query and document are concatenated in the input. The prediction targets are an MLM
-    task and a relevance prediction task using the CLS token. To reproduce the original
-    model released by Baidu, we use clicks or annotations as the relevance signal.
+    task and a relevance prediction task using the CLS token. We use debiased clicks as 
+    the relevance signal.
     """
 
     def __init__(self, config: BertConfig):

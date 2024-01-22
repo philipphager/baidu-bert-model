@@ -26,8 +26,8 @@ from src.trainer import Trainer
 
 @hydra.main(version_base="1.3", config_path="config", config_name="config")
 def main(config: DictConfig):
-    np.random.seed(config.training_arguments.seed)
-    torch.manual_seed(config.training_arguments.seed)
+    np.random.seed(config.seed)
+    torch.manual_seed(config.seed)
 
     directory = Path(config.dataset_directory)
     train_files = [f for f in directory.glob("part-*")]
@@ -42,21 +42,14 @@ def main(config: DictConfig):
     )
 
     np_collate = lambda batch: tree_map(np.asarray, torch.utils.data.default_collate(batch))
-    batch_size = config.training_arguments.per_device_train_batch_size * jax.device_count()
+    batch_size = config.per_device_train_batch_size * jax.device_count()
     train_loader = DataLoader(train_dataset, batch_size, collate_fn=np_collate)
 
     model = instantiate(config.model)
 
-    if config.base_model_path is not None:
-        print("Initializing from pre-trained model:", config.base_model_path)
-        model = model.from_pretrained(
-            config.base_model_path,
-            config=model.config,
-        )
+    trainer = Trainer(**OmegaConf.to_container(config))
 
-    trainer = Trainer(**config.training_arguments)
-
-    if config.training_arguments.log_metrics:
+    if config.log_metrics:
         wandb.init(
             project=config.wandb_project_name,
             entity=config.wandb_entity,
@@ -66,11 +59,10 @@ def main(config: DictConfig):
             save_code=True,
         )
     trained_state = trainer.train(model, train_loader)
-    checkpoints.save_checkpoint(ckpt_dir=config.training_arguments.output_dir + config.run_name,
+    checkpoints.save_checkpoint(ckpt_dir=config.output_dir,
                             target=trained_state,
-                            step=0,
-                            overwrite=True,
-                            keep=2)
+                            step=config.max_steps,
+                            overwrite=True)
 
 
 if __name__ == "__main__":
