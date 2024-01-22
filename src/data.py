@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import torch
-from torch import LongTensor, IntTensor
+import flax.struct
+import numpy as np
 from torch.utils.data import IterableDataset
 
 from src.const import (
@@ -13,29 +14,18 @@ from src.const import (
     IGNORE_LABEL_TOKEN,
 )
 
-
+@flax.struct.dataclass
 class CrossEncoderPretrainDataset(IterableDataset):
-    def __init__(
-        self,
-        files: List[Path],
-        max_sequence_length: int,
-        masking_rate: float,
-        mask_query: bool,
-        mask_doc: bool,
-        special_tokens: Dict[str, int],
-        segment_types: Dict[str, int],
-        ignored_titles: List[bytes],
-    ):
-        self.files = files
-        self.max_sequence_length = max_sequence_length
-        self.masking_rate = masking_rate
-        self.mask_query = mask_query
-        self.mask_doc = mask_doc
-        self.special_tokens = special_tokens
-        self.segment_types = segment_types
-        self.ignored_titles = set(ignored_titles)
+    files: List[Path]
+    max_sequence_length: int
+    masking_rate: float
+    mask_query: bool
+    mask_doc: bool
+    special_tokens: Dict[str, int]
+    segment_types: Dict[str, int]
+    ignored_titles: List[bytes]
 
-    def __iter__(self) -> Tuple[LongTensor, LongTensor, LongTensor, int]:
+    def __iter__(self):
         files = self.get_local_files()
 
         for file in files:
@@ -52,8 +42,9 @@ class CrossEncoderPretrainDataset(IterableDataset):
                         title = columns[TrainColumns.TITLE]
                         abstract = columns[TrainColumns.ABSTRACT]
                         click = float(columns[TrainColumns.CLICK])
+                        position = int(columns[TrainColumns.POS])
 
-                        if title in self.ignored_titles:
+                        if title in set(self.ignored_titles):
                             # Skipping documents during training based on their titles.
                             # Used to ignore missing or navigational items.
                             continue
@@ -76,21 +67,22 @@ class CrossEncoderPretrainDataset(IterableDataset):
                             "token_types": token_types,
                             "labels": labels,
                             "clicks": click,
+                            "positions": position,
                         }
 
     def mask(
         self,
-        tokens: LongTensor,
-        token_types: IntTensor,
-    ) -> Tuple[LongTensor, LongTensor]:
-        tokens = tokens.clone()
+        tokens: np.ndarray,
+        token_types: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        tokens = tokens.copy()
 
         # Mask title and abstract with a given probability, the query is never masked:
-        masking_probability = torch.full_like(
-            tokens, fill_value=self.masking_rate, dtype=torch.float
+        masking_probability = np.full_like(
+            tokens, fill_value=self.masking_rate, dtype=float
         )
 
-        mask = torch.bernoulli(masking_probability).bool()
+        mask = np.random.binomial(1, p=masking_probability).astype(bool)
         # Ignore all special tokens in masking procedure:
         mask[tokens < TOKEN_OFFSET] = False
 
@@ -102,7 +94,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
 
         # Create labels for the MLM prediction task. All non-masked tokens will be
         # marked as -100 to be ignored by the torch cross entropy loss:
-        labels = tokens.clone()
+        labels = tokens.copy()
         labels[~mask] = IGNORE_LABEL_TOKEN
 
         # Apply token mask:
@@ -141,7 +133,7 @@ def preprocess(
     max_tokens: int,
     special_tokens: Dict[str, int],
     segment_types: Dict[str, int],
-) -> Tuple[LongTensor, IntTensor]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Format BERT model input as:
     [CLS] + query + [SEP] + title + [SEP] + content + [SEP] + [PAD]
@@ -164,7 +156,7 @@ def preprocess(
     tokens = tokens[:max_tokens] + padding * [special_tokens["PAD"]]
     token_types = token_types[:max_tokens] + padding * [segment_types["PAD"]]
 
-    tokens = torch.tensor(tokens, dtype=torch.long)
-    token_types = torch.tensor(token_types, dtype=torch.int)
+    tokens = np.array(tokens, dtype=int)
+    token_types = np.array(token_types, dtype=int)
 
     return tokens, token_types

@@ -2,29 +2,18 @@ defaults:
   - _self_
   - data: base
   - model: bert
+  - user_const
 
 dataset_directory: "/beegfs/scratch/user/rdeffaye/baidu-ultr"
-base_model_path: null
+output_dir: "output/"
+seed: 2024
+learning_rate: 5e-5
+max_steps: 1_500_000
+weight_decay: 0.01
+per_device_train_batch_size: 64
+progress_bar: False
+resume_from_checkpoint: False
+log_metrics: True
 
-training_arguments:
-  _target_: transformers.TrainingArguments
-  output_dir: "output/"
-  report_to: "wandb"
-  logging_steps: 100
-  evaluation_strategy: "no"
-  learning_rate: 5e-5
-  lr_scheduler_type: "constant"
-  max_steps: 1_000_000
-  weight_decay: 0.01
-  max_grad_norm: 1.0
-  per_device_train_batch_size: 64
-  dataloader_num_workers: 6
-  save_total_limit: 1
-  disable_tqdm: True
-  seed: 2024
-  resume_from_checkpoint: False
-
-hydra:
-  job:
-    env_set:
-      WANDB_PROJECT: baidu-bert-model
+wandb_project_name: baidu-bert-model
+wandb_entity: cm-offline-metrics

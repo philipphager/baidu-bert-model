@@ -1,53 +1,75 @@
-from typing import Optional
+from typing import Tuple, Any, Dict
 
-import torch
-from torch import LongTensor, FloatTensor, BoolTensor, IntTensor
-from torch import nn
-from torch.nn import CrossEntropyLoss
-from transformers import PretrainedConfig, BertForPreTraining, BertLayer
-from transformers.models.bert.modeling_bert import BertLMPredictionHead
+import flax.linen as nn
+import jax
+import optax
+from jax import Array
+from jax.random import KeyArray
+from transformers import FlaxBertForPreTraining
+from transformers.models.bert.configuration_bert import BertConfig
+from transformers.models.bert.modeling_flax_bert import FlaxBertLMPredictionHead
 
 
-class BertModel(BertForPreTraining):
+class BertModel(FlaxBertForPreTraining):
     """
     Basic BERT model pre-trained only on the MLM task (i.e. RoBERTa setup).
     The model can be further fine-tuned in a CrossEncoder or Condenser setup.
     """
 
-    def __init__(self, config: PretrainedConfig):
+    def __init__(self, config: BertConfig):
         super(BertModel, self).__init__(config)
-        self.mlm_head = BertLMPredictionHead(config)
-        self.mlm_loss = CrossEntropyLoss()
+        self.mlm_head = FlaxBertLMPredictionHead(config=config)
+        self.mlm_loss = optax.softmax_cross_entropy_with_integer_labels
 
     def forward(
         self,
-        tokens: LongTensor,
-        attention_mask: BoolTensor,
-        token_types: IntTensor,
-        labels: Optional[LongTensor] = None,
-        **kwargs,
-    ):
-        loss = 0
-        outputs = self.bert(
-            input_ids=tokens,
-            attention_mask=attention_mask,
-            token_type_ids=token_types,
+        batch: dict,
+        params: dict,
+    ) -> Tuple[dict, Any]:
+        outputs = self.module.apply(
+            {"params": {"bert": params["bert"], "cls": params["cls"]}},
+            input_ids=batch["tokens"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_types"],
+            position_ids=None,
+            head_mask=None,
             return_dict=True,
         )
-        query_document_embedding = outputs.pooler_output
+        sequence_output, query_document_embedding = outputs[:2]
+        logits = self.mlm_head.apply(params["mlm_head"], sequence_output)
 
-        if labels is not None:
-            loss += self.get_mlm_loss(outputs[0], labels)
+        return {"logits": logits}, query_document_embedding
 
-        return loss, query_document_embedding
-
-    def get_mlm_loss(self, sequence_output: FloatTensor, labels: LongTensor):
-        token_scores = self.mlm_head(sequence_output)
-
-        return self.mlm_loss(
-            token_scores.view(-1, self.config.vocab_size),
-            labels.view(-1),
+    def init(self, key: KeyArray, batch: dict) -> dict:
+        outputs = self.module.apply(
+            {"params": self.params},
+            input_ids=batch["tokens"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_types"],
+            position_ids=None,
+            head_mask=None,
+            return_dict=True,
         )
+        mlm_params = self.mlm_head.init(key, outputs[0])
+
+        return {
+            "bert": self.params["bert"],
+            "cls": self.params["cls"],
+            "mlm_head": mlm_params,
+        }
+
+    def get_training_loss(self, outputs: Dict, batch: Dict) -> Array:
+        return self.get_mlm_loss(outputs, batch)
+
+    def get_mlm_loss(self, outputs: Dict, batch: Dict) -> Array:
+        logits = outputs["logits"]
+        labels = batch["labels"]
+
+        # Tokens with label -100 are ignored during the CE computation
+        label_mask = jax.numpy.where(labels != -100, 1.0, 0.0)
+        loss = self.mlm_loss(logits, labels) * label_mask
+
+        return loss.sum() / label_mask.sum()
 
 
 class CrossEncoder(BertModel):
@@ -58,85 +80,93 @@ class CrossEncoder(BertModel):
     model released by Baidu, we use clicks or annotations as the relevance signal.
     """
 
-    def __init__(self, config: PretrainedConfig):
+    def __init__(self, config: BertConfig):
         super(CrossEncoder, self).__init__(config)
-        self.click_head = nn.Linear(config.hidden_size, 1)
-        self.click_loss = nn.BCEWithLogitsLoss()
+        self.click_head = nn.Dense(1)
+        self.click_loss = optax.sigmoid_binary_cross_entropy
 
     def forward(
         self,
-        tokens: LongTensor,
-        attention_mask: BoolTensor,
-        token_types: IntTensor,
-        labels: Optional[LongTensor] = None,
-        clicks: Optional[FloatTensor] = None,
-        **kwargs,
-    ):
-        loss = 0
-        outputs = self.bert(
-            input_ids=tokens,
-            attention_mask=attention_mask,
-            token_type_ids=token_types,
+        batch: Dict,
+        params: Dict,
+    ) -> Tuple[Dict, Any]:
+        outputs = self.module.apply(
+            {"params": {"bert": params["bert"], "cls": params["cls"]}},
+            input_ids=batch["tokens"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_types"],
+            position_ids=None,
+            head_mask=None,
             return_dict=True,
         )
-        query_document_embedding = outputs.pooler_output
-
-        if clicks is not None:
-            click_scores = self.click_head(query_document_embedding).squeeze()
-            loss += self.click_loss(click_scores, clicks)
-
-        if labels is not None:
-            loss += self.get_mlm_loss(outputs[0], labels)
-
-        return loss, query_document_embedding
-
-
-class Condenser(BertModel):
-    """
-    Condenser setup for dense retrieval: https://arxiv.org/pdf/2104.08253.pdf
-    Unsupervised pre-training technique to encourage BERT to leverage the CLS token.
-    """
-
-    def __init__(self, config: PretrainedConfig):
-        super(Condenser, self).__init__(config)
-        self.head_layers = nn.ModuleList(
-            [BertLayer(config) for _ in range(config.head_layers)]
+        sequence_output, query_document_embedding = outputs[:2]
+        logits = self.mlm_head.apply(params["mlm_head"], sequence_output)
+        click_probs = self.click_head.apply(
+            params["click_head"], query_document_embedding
         )
+
+        return {"logits": logits, "click_probs": click_probs}, query_document_embedding
+
+    def init(self, key: KeyArray, batch: Dict) -> Dict:
+        outputs = self.module.apply(
+            {"params": self.params},
+            input_ids=batch["tokens"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_types"],
+            position_ids=None,
+            head_mask=None,
+            return_dict=True,
+        )
+        mlm_key, click_key = jax.random.split(key, 2)
+        mlm_params = self.mlm_head.init(mlm_key, outputs[0])
+        click_params = self.click_head.init(click_key, outputs[1])
+
+        return {
+            "bert": self.params["bert"],
+            "cls": self.params["cls"],
+            "mlm_head": mlm_params,
+            "click_head": click_params,
+        }
+
+    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+        click_loss = self.click_loss(
+            outputs["click_probs"].reshape(-1),
+            batch["clicks"].reshape(-1),
+        ).mean()
+        return mlm_loss + click_loss
+
+class PBMCrossEncoder(CrossEncoder):
+    """
+    BERT cross-encoder: https://arxiv.org/abs/1910.14424
+    Query and document are concatenated in the input. The prediction targets are an MLM
+    task and a relevance prediction task using the CLS token. We use debiased clicks as 
+    the relevance signal.
+    """
+
+    def __init__(self, config: BertConfig):
+        super(PBMCrossEncoder, self).__init__(config)
+        self.propensities = nn.Embed(25, 1)
 
     def forward(
         self,
-        tokens: LongTensor,
-        attention_mask: BoolTensor,
-        token_types: IntTensor,
-        labels: Optional[LongTensor] = None,
-        **kwargs,
-    ):
-        loss = 0
-        outputs = self.bert(
-            input_ids=tokens,
-            attention_mask=attention_mask,
-            token_type_ids=token_types,
-            output_hidden_states=True,
-            return_dict=True,
-        )
+        batch: Dict,
+        params: Dict,
+    ) -> Tuple[Dict, Any]:
+        outputs, query_document_embedding = super(PBMCrossEncoder, self).forward(batch, params)
+        outputs["exam"] = self.propensities.apply(params["propensities"], batch["positions"])
+        return outputs, query_document_embedding
 
-        cls_late = outputs.hidden_states[-1][:, :1]
-        tokens_early = outputs.hidden_states[self.config.num_early_layers][:, 1:]
-        sequence_output = torch.cat([cls_late, tokens_early], dim=1)
+    def init(self, key: KeyArray, batch: Dict) -> Dict:
+        ce_key, prop_key = jax.random.split(key, 2)
+        params = super(PBMCrossEncoder, self).init(ce_key, batch)
+        params["propensities"] = self.propensities.init(prop_key, batch["positions"])
+        return params
 
-        # Extend initial attention mask to match the number of attention heads:
-        head_attention_mask = self.bert.get_extended_attention_mask(
-            attention_mask, attention_mask.shape, attention_mask.device
-        )
-
-        for layer in self.head_layers:
-            sequence_output = layer(sequence_output, head_attention_mask)[0]
-
-        # Compute MLM loss after condenser head layers
-        loss += self.get_mlm_loss(sequence_output, labels)
-
-        if self.config.do_late_mlm:
-            # In addition, add the original mlm
-            loss += self.get_mlm_loss(outputs[0], labels)
-
-        return loss, cls_late
+    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+        click_loss = self.click_loss(
+            outputs["click_probs"].reshape(-1) + outputs["exam"].reshape(-1),
+            batch["clicks"].reshape(-1),
+        ).mean()
+        return mlm_loss + click_loss
