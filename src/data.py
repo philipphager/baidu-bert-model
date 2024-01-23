@@ -6,6 +6,7 @@ import torch
 import flax.struct
 import numpy as np
 from torch.utils.data import IterableDataset
+from jax.tree_util import tree_map
 
 from src.const import (
     TrainColumns,
@@ -118,6 +119,12 @@ class CrossEncoderPretrainDataset(IterableDataset):
             worker_id = info.id
 
         return [f for i, f in enumerate(self.files) if i % worker_num == worker_id]
+    
+    def collate_fn(self, batch):
+        return tree_map(np.asarray, torch.utils.data.default_collate(batch))
+    
+    def get_batch_size(self):
+        return self.batch_size
 
 @flax.struct.dataclass
 class CrossEncoderListwisePretrainDataset(CrossEncoderPretrainDataset):
@@ -145,7 +152,7 @@ class CrossEncoderListwisePretrainDataset(CrossEncoderPretrainDataset):
                     columns = line.strip(b"\n").split(b"\t")
                     is_query = len(columns) <= 3
 
-                    if is_query and i!= 0:
+                    if is_query:
                         if len(clicks) > self.batch_size:
                             yield {
                                 "query_ids": query_ids,
@@ -160,8 +167,9 @@ class CrossEncoderListwisePretrainDataset(CrossEncoderPretrainDataset):
                             labels, clicks, positions = [], [], []
 
                         query = columns[QueryColumns.QUERY]
-                        query_ids.append(columns[QueryColumns.QID])
+                        query_id = int(columns[QueryColumns.QID])
                     else:
+                        query_ids.append(query_id)
                         title = columns[TrainColumns.TITLE]
                         abstract = columns[TrainColumns.ABSTRACT]
 
@@ -187,7 +195,26 @@ class CrossEncoderListwisePretrainDataset(CrossEncoderPretrainDataset):
                         mt, l = self.mask(tokens, tt)
                         masked_tokens.append(mt)
                         labels.append(l)
+            
+    def collate_fn(self, batch):
+        batch = self.pad_batch(batch)
+        return {k: np.concatenate([b[k] for b in batch], axis = 0) for k in batch[0].keys()}
 
+    def pad_batch(self, batch: List[dict]) -> List[dict]:
+        max_len = np.max([len(b["clicks"]) for b in batch])
+        for b in batch:
+            diff = max_len - len(b["clicks"])
+            b["query_ids"] += [-1] * diff
+            b["tokens"] += [np.full_like(b["tokens"][0], self.special_tokens["PAD"])] * diff
+            b["attention_mask"] += [np.full_like(b["attention_mask"][0], False)] * diff
+            b["token_types"] += [np.full_like(b["token_types"][0], self.segment_types["PAD"])] * diff
+            b["labels"] += [np.full_like(b["labels"][0], self.special_tokens["PAD"])] * diff
+            b["clicks"] += [0.0] * diff
+            b["positions"] += [0] * diff
+        return [{k: np.asarray(v) for k,v in b.items()} for b in batch]
+    
+    def get_batch_size(self):
+        return 1
 
 
 def split_idx(text: bytes, offset: int) -> List[int]:

@@ -5,7 +5,6 @@ import jax
 import numpy as np
 import torch
 from hydra.utils import instantiate
-from jax.tree_util import tree_map
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 
@@ -42,9 +41,9 @@ def main(config: DictConfig):
         batch_size = config.per_device_train_batch_size,
     )
 
-    np_collate = lambda batch: tree_map(np.asarray, torch.utils.data.default_collate(batch))
-    batch_size = config.per_device_train_batch_size * jax.device_count()
-    train_loader = DataLoader(train_dataset, batch_size, collate_fn=np_collate)
+    train_loader = DataLoader(train_dataset, 
+                              batch_size = train_dataset.get_batch_size() * jax.device_count(), 
+                              collate_fn=train_dataset.collate_fn)
 
     model = instantiate(config.model)
 
