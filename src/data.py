@@ -164,12 +164,11 @@ class CrossEncoderListwisePretrainDataset(CrossEncoderPretrainDataset):
                                 "positions": positions,
                             }
                             masked_tokens, attention_masks, token_types = [], [], []
-                            labels, clicks, positions = [], [], []
+                            query_ids, labels, clicks, positions = [], [], [], []
 
                         query = columns[QueryColumns.QUERY]
                         query_id = int(columns[QueryColumns.QID])
                     else:
-                        query_ids.append(query_id)
                         title = columns[TrainColumns.TITLE]
                         abstract = columns[TrainColumns.ABSTRACT]
 
@@ -178,6 +177,7 @@ class CrossEncoderListwisePretrainDataset(CrossEncoderPretrainDataset):
                             # Used to ignore missing or navigational items.
                             continue
 
+                        query_ids.append(query_id)
                         clicks.append(float(columns[TrainColumns.CLICK]))
                         positions.append(int(columns[TrainColumns.POS]))
 
