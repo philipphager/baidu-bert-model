@@ -29,29 +29,19 @@ class Evaluator:
         loader: DataLoader,
     ) -> dict:
         metrics = []
-        key = jax.random.PRNGKey(self.seed)
-        key, init_key = jax.random.split(key, 2)
-
-        init_batch = next(iter(loader))
-        init_batch["position"] = np.arange(25)
-        state = TrainState.create(
-            apply_fn=model.get_relevance_score,
-            params=model.init(init_key, init_batch),
-            tx = optax.adamw(5e-5),
-        )
-        checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=state)
+        params = checkpoints.restore_checkpoint(ckpt_dir="/beegfs/scratch/user/rdeffaye/baidu-bert/runs/mlm+clicks", target=None)["params"]
 
         for batch in tqdm(loader, total = 7008, disable=not self.progress_bar):
             if len(batch["label"]) < 2:
                 continue
-            metrics.append(self._eval_step(state, batch))
+            metrics.append(self._eval_step(model, params, batch))
             wandb.log({key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()})
 
         return {key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()}
 
-    @partial(jax.jit, static_argnums = (0,))
-    def _eval_step(self, state, batch):
-        relevances = state.apply_fn(batch, params = state.params)
+    @partial(jax.jit, static_argnums = (0, 1))
+    def _eval_step(self, model, params, batch):
+        relevances = model.get_relevance_score(batch, params = params)
         return {metric_name: metric(relevances.squeeze(), batch["label"]) 
                 for metric_name, metric in self.metrics.items()}
 
