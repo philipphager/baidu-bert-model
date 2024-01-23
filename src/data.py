@@ -167,17 +167,29 @@ def collate_for_eval(
         special_tokens: Dict[str, int],
         segment_types: Dict[str, int],
     ) -> dict:
-    tokens = [[special_tokens["CLS"]] + batch[0]["query"] + [special_tokens["SEP"]] + \
-                batch[0]["title"][k] + [special_tokens["SEP"]] + batch[0]["abstract"][k] + [special_tokens["SEP"]] 
-                for k in range(len(batch[0]["label"]))]
-    tokens = np.array([tk[:max_tokens] + max(max_tokens - len(tk), 0) * [special_tokens["PAD"]] for tk in tokens])
-    token_types = [[segment_types["QUERY"]] * (len(batch[0]["query"]) + 2) + \
-                    [segment_types["TEXT"]] * (len(batch[0]["abstract"][k]) + 2)
-                    for k in range(len(batch[0]["label"]))]
-    token_types = np.array([tt[:max_tokens] + max(max_tokens - len(tt), 0) * [segment_types["PAD"]] for tt in token_types])
-    return {"tokens": tokens,
-            "attention_mask": tokens > special_tokens["PAD"],
-            "token_types": token_types,
-            "label": np.array(batch[0]["label"]),
-            "frequency_bucket": batch[0]["frequency_bucket"],
-            }
+    b = batch[0]
+    collated = {"tokens": [], "attention_mask": [], "token_types": []}
+    n_docs = len(b["label"])
+    
+    for k in range(n_docs):
+        query_tokens = [special_tokens["CLS"]] + b["query"] + [special_tokens["SEP"]]
+        doc_tokens = b["title"][k] + [special_tokens["SEP"]] + b["abstract"][k] + [special_tokens["SEP"]]
+        tokens = query_tokens + doc_tokens
+        tokens = tokens[:max_tokens] + max(max_tokens - len(tokens), 0) * [special_tokens["PAD"]]
+        collated["tokens"].append(np.asarray(tokens))
+
+        query_token_types = [segment_types["QUERY"]] * len(query_tokens)
+        doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
+        token_types = query_token_types + doc_token_types
+        token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
+        collated["token_types"].append(np.asarray(token_types))
+
+        collated["attention_mask"].append(tokens > special_tokens["PAD"])
+
+    return {
+        "tokens": np.concatenate(collated["tokens"], axis = 0),
+        "attention_mask": np.concatenate(collated["attention_mask"], axis = 0),
+        "token_types": np.concatenate(collated["token_types"], axis = 0),
+        "label": np.asarray(b["label"]),
+        "frequency_bucket": b["frequency_bucket"],
+    }
