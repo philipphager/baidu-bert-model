@@ -135,6 +135,22 @@ class CrossEncoder(BertModel):
             batch["clicks"].reshape(-1),
         ).mean()
         return mlm_loss + click_loss
+    
+    def get_relevance_score(self, batch: dict, params: dict) -> Array:
+        outputs = self.module.apply(
+            {"params": {"bert": params["bert"], "cls": params["cls"]}},
+            input_ids=batch["tokens"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_types"],
+            position_ids=None,
+            head_mask=None,
+            return_dict=True,
+        )
+        _, query_document_embedding = outputs[:2]
+        click_probs = self.click_head.apply(
+            params["click_head"], query_document_embedding
+        )
+        return click_probs
 
 class PBMCrossEncoder(CrossEncoder):
     """

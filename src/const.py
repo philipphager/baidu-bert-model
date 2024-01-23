@@ -1,4 +1,5 @@
 from enum import IntEnum
+from rax import dcg_metric
 
 MAX_SEQUENCE_LENGTH = 128
 MASKING_RATE = 0.4
@@ -20,6 +21,8 @@ SEGMENT_TYPES = {
 
 MISSING_TITLE = b"21429"
 WHAT_OTHER_PEOPLE_SEARCHED_TITLE = b"3742\x0111492\x0112169\x015061\x0116905"
+
+EVAL_METRICS = {"DCG@10": lambda rel, label: dcg_metric(rel, label, topn=10),}
 
 
 class QueryColumns(IntEnum):

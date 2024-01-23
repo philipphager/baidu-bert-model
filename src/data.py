@@ -160,3 +160,36 @@ def preprocess(
     token_types = np.array(token_types, dtype=int)
 
     return tokens, token_types
+
+def collate_for_eval(
+        batch: List[dict], 
+        max_tokens: int, 
+        special_tokens: Dict[str, int],
+        segment_types: Dict[str, int],
+    ) -> dict:
+    b = batch[0]
+    collated = {"tokens": [], "attention_mask": [], "token_types": []}
+    n_docs = len(b["label"])
+    
+    for k in range(n_docs):
+        query_tokens = [special_tokens["CLS"]] + b["query"] + [special_tokens["SEP"]]
+        doc_tokens = b["title"][k] + [special_tokens["SEP"]] + b["abstract"][k] + [special_tokens["SEP"]]
+        tokens = query_tokens + doc_tokens
+        tokens = tokens[:max_tokens] + max(max_tokens - len(tokens), 0) * [special_tokens["PAD"]]
+        collated["tokens"].append(np.asarray(tokens))
+
+        query_token_types = [segment_types["QUERY"]] * len(query_tokens)
+        doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
+        token_types = query_token_types + doc_token_types
+        token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
+        collated["token_types"].append(np.asarray(token_types))
+
+        collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
+
+    return {
+        "tokens": np.stack(collated["tokens"], axis = 0),
+        "attention_mask": np.stack(collated["attention_mask"], axis = 0),
+        "token_types": np.stack(collated["token_types"], axis = 0),
+        "label": np.asarray(b["label"]),
+        "frequency_bucket": b["frequency_bucket"],
+    }
