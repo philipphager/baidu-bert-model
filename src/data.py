@@ -24,6 +24,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
     special_tokens: Dict[str, int]
     segment_types: Dict[str, int]
     ignored_titles: List[bytes]
+    batch_size: int
 
     def __iter__(self):
         files = self.get_local_files()
@@ -118,6 +119,76 @@ class CrossEncoderPretrainDataset(IterableDataset):
 
         return [f for i, f in enumerate(self.files) if i % worker_num == worker_id]
 
+@flax.struct.dataclass
+class CrossEncoderListwisePretrainDataset(CrossEncoderPretrainDataset):
+    files: List[Path]
+    max_sequence_length: int
+    masking_rate: float
+    mask_query: bool
+    mask_doc: bool
+    special_tokens: Dict[str, int]
+    segment_types: Dict[str, int]
+    ignored_titles: List[bytes]
+    batch_size: int
+
+    def __iter__(self):
+        files = self.get_local_files()
+
+        for file in files:
+            with gzip.open(file, "rb") as f:
+                query = None
+
+                masked_tokens, attention_masks, token_types = [], [], []
+                query_ids, labels, clicks, positions = [], [], [], []
+
+                for i, line in enumerate(f):
+                    columns = line.strip(b"\n").split(b"\t")
+                    is_query = len(columns) <= 3
+
+                    if is_query and i!= 0:
+                        if len(clicks) > self.batch_size:
+                            yield {
+                                "query_ids": query_ids,
+                                "tokens": masked_tokens,
+                                "attention_mask": attention_masks,
+                                "token_types": token_types,
+                                "labels": labels,
+                                "clicks": clicks,
+                                "positions": positions,
+                            }
+                            masked_tokens, attention_masks, token_types = [], [], []
+                            labels, clicks, positions = [], [], []
+
+                        query = columns[QueryColumns.QUERY]
+                        query_ids.append(columns[QueryColumns.QID])
+                    else:
+                        title = columns[TrainColumns.TITLE]
+                        abstract = columns[TrainColumns.ABSTRACT]
+
+                        if title in set(self.ignored_titles):
+                            # Skipping documents during training based on their titles.
+                            # Used to ignore missing or navigational items.
+                            continue
+
+                        clicks.append(float(columns[TrainColumns.CLICK]))
+                        positions.append(int(columns[TrainColumns.POS]))
+
+                        tokens, tt = preprocess(
+                            query=query,
+                            title=title,
+                            abstract=abstract,
+                            max_tokens=self.max_sequence_length,
+                            special_tokens=self.special_tokens,
+                            segment_types=self.segment_types,
+                        )
+                        token_types.append(tt)
+
+                        attention_masks.append(tokens > self.special_tokens["PAD"])
+                        mt, l = self.mask(tokens, tt)
+                        masked_tokens.append(mt)
+                        labels.append(l)
+
+
 
 def split_idx(text: bytes, offset: int) -> List[int]:
     """
@@ -170,13 +241,14 @@ def collate_for_eval(
     tokens = [[special_tokens["CLS"]] + batch[0]["query"] + [special_tokens["SEP"]] + \
                 batch[0]["title"][k] + [special_tokens["SEP"]] + batch[0]["abstract"][k] + [special_tokens["SEP"]] 
                 for k in range(len(batch[0]["label"]))]
+    tokens = np.array([tk[:max_tokens] + max(max_tokens - len(tk), 0) * [special_tokens["PAD"]] for tk in tokens])
     token_types = [[segment_types["QUERY"]] * (len(batch[0]["query"]) + 2) + \
                     [segment_types["TEXT"]] * (len(batch[0]["abstract"][k]) + 2)
                     for k in range(len(batch[0]["label"]))]
-    return {"tokens": np.array([tk[:max_tokens] + max(max_tokens - len(tk), 0) * [special_tokens["PAD"]] 
-                                for tk in tokens]),
-            "token_types": np.array([tt[:max_tokens] + max(max_tokens - len(tt), 0) * [segment_types["PAD"]] 
-                                for tt in token_types]),
+    token_types = np.array([tt[:max_tokens] + max(max_tokens - len(tt), 0) * [segment_types["PAD"]] for tt in token_types])
+    return {"tokens": tokens,
+            "attention_mask": tokens > special_tokens["PAD"],
+            "token_types": token_types,
             "label": np.array(batch[0]["label"]),
             "frequency_bucket": batch[0]["frequency_bucket"],
             }

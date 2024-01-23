@@ -39,6 +39,7 @@ def main(config: DictConfig):
         special_tokens=SPECIAL_TOKENS,
         segment_types=SEGMENT_TYPES,
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
+        batch_size = config.per_device_train_batch_size,
     )
 
     np_collate = lambda batch: tree_map(np.asarray, torch.utils.data.default_collate(batch))
