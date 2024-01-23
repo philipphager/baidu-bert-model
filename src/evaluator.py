@@ -29,7 +29,7 @@ class Evaluator:
         loader: DataLoader,
     ) -> dict:
         metrics = []
-        params = checkpoints.restore_checkpoint(ckpt_dir="/beegfs/scratch/user/rdeffaye/baidu-bert/runs/mlm+clicks", target=None)["params"]
+        params = checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=None)["params"]
 
         for batch in tqdm(loader, total = 7008, disable=not self.progress_bar):
             if len(batch["label"]) < 2:
