@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 
 import flax
-import wandb
 flax.config.update('flax_use_orbax_checkpointing', False)
 
 from src.const import (
@@ -42,15 +41,6 @@ def main(config: DictConfig):
     evaluator = Evaluator(metrics = EVAL_METRICS, ckpt_dir = config.output_dir, 
                           **OmegaConf.to_container(config))
 
-    if config.log_metrics:
-            wandb.init(
-                project=config.wandb_project_name,
-                entity=config.wandb_entity,
-                sync_tensorboard=False,
-                config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
-                name=config.run_name,
-                save_code=True,
-            )
     metrics = evaluator.eval(model, eval_loader)
     print(metrics)
 

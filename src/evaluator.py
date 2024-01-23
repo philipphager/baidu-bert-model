@@ -1,11 +1,8 @@
 from tqdm import tqdm
 import numpy as np
 import jax
-import wandb
-import optax
 from functools import partial
 
-from flax.training.train_state import TrainState
 from flax.training import checkpoints
 from torch.utils.data import DataLoader
 
@@ -35,7 +32,6 @@ class Evaluator:
             if len(batch["label"]) < 2:
                 continue
             metrics.append(self._eval_step(model, params, batch))
-            wandb.log({key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()})
 
         return {key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()}
 
