@@ -33,7 +33,6 @@ class Evaluator:
 
         init_batch = next(iter(loader))
         init_batch["position"] = np.arange(25)
-        init_batch["attention_mask"] = None
         state = TrainState.create(
             apply_fn=model.get_relevance_score,
             params=model.init(init_key, init_batch),

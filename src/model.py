@@ -140,7 +140,7 @@ class CrossEncoder(BertModel):
         outputs = self.module.apply(
             {"params": {"bert": params["bert"], "cls": params["cls"]}},
             input_ids=batch["tokens"],
-            attention_mask=None,
+            attention_mask=batch["attention_mask"],
             token_type_ids=batch["token_types"],
             position_ids=None,
             head_mask=None,
