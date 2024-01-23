@@ -41,7 +41,7 @@ class Evaluator:
         )
         checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=state)
 
-        for q, batch in enumerate(tqdm(loader, total = 7008, disable=not self.progress_bar)):
+        for batch in tqdm(loader, total = 7008, disable=not self.progress_bar):
             if len(batch["label"]) < 2:
                 continue
             metrics.append(self._eval_step(state, batch))
