@@ -160,3 +160,23 @@ def preprocess(
     token_types = np.array(token_types, dtype=int)
 
     return tokens, token_types
+
+def collate_for_eval(
+        batch: List[dict], 
+        max_tokens: int, 
+        special_tokens: Dict[str, int],
+        segment_types: Dict[str, int],
+    ) -> dict:
+    tokens = [[special_tokens["CLS"]] + batch[0]["query"] + [special_tokens["SEP"]] + \
+                batch[0]["title"][k] + [special_tokens["SEP"]] + batch[0]["abstract"][k] + [special_tokens["SEP"]] 
+                for k in range(len(batch[0]["label"]))]
+    token_types = [[segment_types["QUERY"]] * (len(batch[0]["query"]) + 2) + \
+                    [segment_types["TEXT"]] * (len(batch[0]["abstract"][k]) + 2)
+                    for k in range(len(batch[0]["label"]))]
+    return {"tokens": np.array([tk[:max_tokens] + max(max_tokens - len(tk), 0) * [special_tokens["PAD"]] 
+                                for tk in tokens]),
+            "token_types": np.array([tt[:max_tokens] + max(max_tokens - len(tt), 0) * [segment_types["PAD"]] 
+                                for tt in token_types]),
+            "label": np.array(batch[0]["label"]),
+            "frequency_bucket": batch[0]["frequency_bucket"],
+            }

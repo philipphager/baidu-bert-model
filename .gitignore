@@ -12,3 +12,4 @@ pyproject.toml
 poetry.lock
 multirun/
 scripts/slurm.sh
+scripts/eval_slurm.sh
