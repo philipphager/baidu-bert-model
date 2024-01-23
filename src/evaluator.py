@@ -3,6 +3,7 @@ import numpy as np
 import jax
 import optax
 from functools import partial
+import wandb
 
 from flax.training.train_state import TrainState
 from flax.training import checkpoints
@@ -42,6 +43,7 @@ class Evaluator:
 
         for batch in tqdm(loader, total = 7008, disable=not self.progress_bar):
             metrics.append(self._eval_step(state, batch))
+            wandb.log({key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()})
 
         return {key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()}
 
