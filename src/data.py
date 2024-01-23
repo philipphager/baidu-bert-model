@@ -282,12 +282,12 @@ def collate_for_eval(
         token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
         collated["token_types"].append(np.asarray(token_types))
 
-        collated["attention_mask"].append(tokens > special_tokens["PAD"])
+        collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
 
     return {
-        "tokens": np.concatenate(collated["tokens"], axis = 0),
-        "attention_mask": np.concatenate(collated["attention_mask"], axis = 0),
-        "token_types": np.concatenate(collated["token_types"], axis = 0),
+        "tokens": np.stack(collated["tokens"], axis = 0),
+        "attention_mask": np.stack(collated["attention_mask"], axis = 0),
+        "token_types": np.stack(collated["token_types"], axis = 0),
         "label": np.asarray(b["label"]),
         "frequency_bucket": b["frequency_bucket"],
     }
