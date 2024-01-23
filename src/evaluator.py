@@ -45,7 +45,7 @@ class Evaluator:
 
         return {key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()}
 
-    #@partial(jax.jit, static_argnums = (0,))
+    @partial(jax.jit, static_argnums = (0,))
     def _eval_step(self, state, batch):
         relevances = state.apply_fn(batch, params = state.params)
         return {metric_name: metric(relevances.squeeze(), batch["label"]) 
