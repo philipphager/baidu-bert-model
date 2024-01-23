@@ -33,7 +33,6 @@ class Evaluator:
 
         init_batch = next(iter(loader))
         init_batch["position"] = np.arange(25)
-        init_batch["attention_mask"] = None
         state = TrainState.create(
             apply_fn=model.get_relevance_score,
             params=model.init(init_key, init_batch),
@@ -41,7 +40,7 @@ class Evaluator:
         )
         checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=state)
 
-        for batch in tqdm(loader, total = 7008, disable=not self.progress_bar):
+        for batch in enumerate(tqdm(loader, total = 7008, disable=not self.progress_bar):
             metrics.append(self._eval_step(state, batch))
 
         return {key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()}
@@ -49,7 +48,7 @@ class Evaluator:
     @partial(jax.jit, static_argnums = (0,))
     def _eval_step(self, state, batch):
         relevances = state.apply_fn(batch, params = state.params)
-        return {metric_name: metric(relevances, batch["label"]) 
+        return {metric_name: metric(relevances.squeeze(), batch["label"]) 
                 for metric_name, metric in self.metrics.items()}
 
 
