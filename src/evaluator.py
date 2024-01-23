@@ -1,6 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import jax
+import wandb
 import optax
 from functools import partial
 
@@ -40,8 +41,9 @@ class Evaluator:
         )
         checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=state)
 
-        for batch in enumerate(tqdm(loader, total = 7008, disable=not self.progress_bar):
+        for batch in tqdm(loader, total = 7008, disable=not self.progress_bar):
             metrics.append(self._eval_step(state, batch))
+            wandb.log({key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()})
 
         return {key: np.mean([m[key] for m in metrics]) for key in self.metrics.keys()}
 
