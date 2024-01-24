@@ -210,7 +210,7 @@ class PBMCrossEncoder(CrossEncoder):
         return mlm_loss + click_loss
 
 
-class ListwisePBMCrossEncoder(CrossEncoder):
+class ListwisePBMCrossEncoder(PBMCrossEncoder):
     "BERT-based cross-encoder with listwise click loss"
 
     def __init__(self, config: BertConfig):
@@ -222,6 +222,44 @@ class ListwisePBMCrossEncoder(CrossEncoder):
 
         click_loss = self.click_loss(
                 outputs["click_probs"].reshape(-1) + outputs["exam"].reshape(-1), 
+                batch["clicks"].reshape(-1), 
+                where = (batch["query_ids"] != -1), 
+                segments = batch["query_ids"])
+        return mlm_loss + click_loss
+
+class IPSCrossEncoder(CrossEncoder):
+    """
+    BERT cross-encoder: https://arxiv.org/abs/1910.14424
+    Query and document are concatenated in the input. The prediction targets are an MLM
+    task and a relevance prediction task using the CLS token. We use debiased clicks as 
+    the relevance signal.
+    """
+
+    def __init__(self, config: BertConfig, propensities_path: str):
+        super(IPSCrossEncoder, self).__init__(config)
+        self.propensities = jnp.load(propensities_path)
+
+    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+        click_loss = self.click_loss(
+            outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"]].reshape(-1),
+            batch["clicks"].reshape(-1),
+        ).mean()
+        return mlm_loss + click_loss
+
+
+class ListwiseIPSCrossEncoder(IPSCrossEncoder):
+    "BERT-based cross-encoder with listwise click loss"
+
+    def __init__(self, config: BertConfig, propensities_path: str):
+        super(ListwiseIPSCrossEncoder, self).__init__(config, propensities_path)
+        self.click_loss = rax.softmax_loss
+
+    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+
+        click_loss = self.click_loss(
+                outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"]].reshape(-1), 
                 batch["clicks"].reshape(-1), 
                 where = (batch["query_ids"] != -1), 
                 segments = batch["query_ids"])

@@ -1,0 +1,5 @@
+defaults:
+  - cross-encoder
+
+_target_: src.model.ListwiseIPSCrossEncoder
+propensities_path: "propensities/allpairs.npx"
