@@ -35,7 +35,6 @@ def main(config: DictConfig):
 
     collate_fn = lambda batch: collate_for_eval(batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES)
     eval_loader = DataLoader(eval_dataset, batch_size = 1, collate_fn=collate_fn)
-
     model = instantiate(config.model)
 
     evaluator = Evaluator(metrics = EVAL_METRICS, ckpt_dir = config.output_dir, 
