@@ -214,7 +214,7 @@ class ListwisePBMCrossEncoder(CrossEncoder):
     "BERT-based cross-encoder with listwise click loss"
 
     def __init__(self, config: BertConfig):
-        super(ListwiseCrossEncoder, self).__init__(config)
+        super(ListwisePBMCrossEncoder, self).__init__(config)
         self.click_loss = rax.softmax_loss
 
     def get_training_loss(self, outputs: dict, batch: dict) -> Array:
