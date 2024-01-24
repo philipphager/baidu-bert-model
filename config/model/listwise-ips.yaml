@@ -2,4 +2,4 @@ defaults:
   - cross-encoder
 
 _target_: src.model.ListwiseIPSCrossEncoder
-propensities_path: "propensities/allpairs.npx"
+propensities_path: "propensities/global_all_pairs.npy"

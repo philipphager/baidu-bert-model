@@ -242,7 +242,7 @@ class IPSCrossEncoder(CrossEncoder):
     def get_training_loss(self, outputs: dict, batch: dict) -> Array:
         mlm_loss = self.get_mlm_loss(outputs, batch)
         click_loss = self.click_loss(
-            outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"]].reshape(-1),
+            outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"] - 1].reshape(-1),
             batch["clicks"].reshape(-1),
         ).mean()
         return mlm_loss + click_loss
@@ -259,7 +259,7 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         click_loss = self.click_loss(
-                outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"]].reshape(-1), 
+                outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"] - 1].reshape(-1), 
                 batch["clicks"].reshape(-1), 
                 where = (batch["query_ids"] != -1), 
                 segments = batch["query_ids"])

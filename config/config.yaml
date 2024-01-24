@@ -8,7 +8,7 @@ dataset_directory: "/beegfs/scratch/user/rdeffaye/baidu-ultr"
 output_dir: "output/"
 seed: 2024
 learning_rate: 5e-5
-max_steps: 1_500_000
+max_steps: 2_000_000
 weight_decay: 0.01
 per_device_train_batch_size: 64
 progress_bar: False
