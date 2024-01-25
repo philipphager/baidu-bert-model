@@ -31,6 +31,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
         files = self.get_local_files()
 
         for file in files:
+            print((file))
             with gzip.open(file, "rb") as f:
                 query = None
 

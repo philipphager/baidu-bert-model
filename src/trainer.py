@@ -5,6 +5,7 @@ from typing import Tuple
 
 import flax
 import jax
+from jax import Array
 import optax
 import wandb
 from flax.training.common_utils import shard
@@ -53,25 +54,41 @@ class Trainer:
             tx=self.optimizer,
         )
         state = flax.jax_utils.replicate(state)
-        mean_loss = jax.numpy.zeros(1)
+        self.init_track(model)
 
         for step, batch in enumerate(tqdm(train_loader, disable=not self.progress_bar)):
             if step == self.max_steps:
                 break
                 
-            state, loss = self._train_step(model, state, shard(batch))
-            mean_loss += loss.mean()
-
-            if self.log_metrics and step % 1000 == 0:
-                wandb.log(
-                    {
-                        "train/loss": jax.device_get(mean_loss / min(step + 1, 1000)),
-                        "train/global_step": step,
-                    }
-                )
-                mean_loss = jax.numpy.zeros(1)
+            state, loss, losses = self._train_step(model, state, shard(batch))
+            self.track(step, loss, losses, len(batch["tokens"]))
 
         return flax.jax_utils.unreplicate(state)
+    
+    def init_track(self, model):
+        self.mean_loss = jax.numpy.zeros(1)
+        self.mean_losses = {l: jax.numpy.zeros(1) for l in model.losses}
+        self.mean_batch_size = 0
+    
+    def track(self, step: int, loss: Array, losses: dict, batch_size: int):
+        self.mean_loss += loss.mean()
+        self.mean_losses = {k: v + losses[k].mean() for k,v in self.mean_losses.items()} 
+        self.mean_batch_size += batch_size
+
+        if self.log_metrics and step % 1000 == 0:
+            wandb.log(
+                {
+                    **{
+                        "train/loss": jax.device_get(self.mean_loss / min(step + 1, 1000)),
+                        "train/batch_size": self.mean_batch_size / min(step + 1, 1000),
+                        "train/global_step": step,
+                    },
+                    **{
+                    f"train/{k}": jax.device_get(v / min(step + 1, 1000)) for k,v in self.mean_losses.items()
+                    }
+                }
+            )
+            mean_loss = jax.numpy.zeros(1)   
 
     @partial(
         jax.pmap,
@@ -81,11 +98,11 @@ class Trainer:
     )
     def _train_step(
         self, model, state: TrainState, batch: dict
-    ) -> Tuple[TrainState, jax.Array]:
+    ) -> Tuple[TrainState, jax.Array, dict]:
         def loss_fn(params):
             outputs, _ = state.apply_fn(batch, params=params)
             return model.get_training_loss(outputs, batch)
 
-        loss, grads = jax.value_and_grad(loss_fn)(state.params)
+        (loss, losses), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         state = state.apply_gradients(grads=jax.lax.pmean(grads, axis_name="batch"))
-        return state, jax.lax.pmean(loss, axis_name="batch")
+        return state, jax.lax.pmean(loss, axis_name="batch"), jax.lax.pmean(losses, axis_name="batch")

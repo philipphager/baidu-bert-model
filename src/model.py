@@ -24,6 +24,7 @@ class BertModel(FlaxBertForPreTraining):
         super(BertModel, self).__init__(config)
         self.mlm_head = FlaxBertLMPredictionHead(config=config)
         self.mlm_loss = optax.softmax_cross_entropy_with_integer_labels
+        self.losses = ["mlm_loss"]
 
     def forward(
         self,
@@ -62,8 +63,9 @@ class BertModel(FlaxBertForPreTraining):
             "mlm_head": mlm_params,
         }
 
-    def get_training_loss(self, outputs: Dict, batch: Dict) -> Array:
-        return self.get_mlm_loss(outputs, batch)
+    def get_training_loss(self, outputs: Dict, batch: Dict) -> Tuple[Array, dict]:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+        return mlm_loss, {"mlm_loss": mlm_loss}
 
     def get_mlm_loss(self, outputs: Dict, batch: Dict) -> Array:
         logits = outputs["logits"]
@@ -88,6 +90,7 @@ class CrossEncoder(BertModel):
         super(CrossEncoder, self).__init__(config)
         self.click_head = nn.Dense(1)
         self.click_loss = optax.sigmoid_binary_cross_entropy
+        self.losses = ["mlm_loss", "click_loss"]
 
     def forward(
         self,
@@ -132,13 +135,13 @@ class CrossEncoder(BertModel):
             "click_head": click_params,
         }
 
-    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+    def get_training_loss(self, outputs: dict, batch: dict) -> Tuple[Array, dict]:
         mlm_loss = self.get_mlm_loss(outputs, batch)
         click_loss = self.click_loss(
             outputs["click_probs"].reshape(-1),
             batch["clicks"].reshape(-1),
         ).mean()
-        return mlm_loss + click_loss
+        return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
     
     def get_relevance_score(self, batch: dict, params: dict) -> Array:
         outputs = self.module.apply(
@@ -164,7 +167,7 @@ class ListwiseCrossEncoder(CrossEncoder):
         super(ListwiseCrossEncoder, self).__init__(config)
         self.click_loss = rax.softmax_loss
 
-    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+    def get_training_loss(self, outputs: dict, batch: dict) -> Tuple[Array, dict]:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         click_loss = self.click_loss(
@@ -172,7 +175,7 @@ class ListwiseCrossEncoder(CrossEncoder):
                 batch["clicks"].reshape(-1), 
                 where = (batch["query_ids"] != -1), 
                 segments = batch["query_ids"])
-        return mlm_loss + click_loss
+        return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
 
 class PBMCrossEncoder(CrossEncoder):
     """
@@ -201,14 +204,13 @@ class PBMCrossEncoder(CrossEncoder):
         params["propensities"] = self.propensities.init(prop_key, batch["positions"])
         return params
 
-    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+    def get_training_loss(self, outputs: dict, batch: dict) -> Tuple[Array, dict]:
         mlm_loss = self.get_mlm_loss(outputs, batch)
         click_loss = self.click_loss(
             outputs["click_probs"].reshape(-1) + outputs["exam"].reshape(-1),
             batch["clicks"].reshape(-1),
         ).mean()
-        return mlm_loss + click_loss
-
+        return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
 
 class ListwisePBMCrossEncoder(PBMCrossEncoder):
     "BERT-based cross-encoder with listwise click loss"
@@ -217,7 +219,7 @@ class ListwisePBMCrossEncoder(PBMCrossEncoder):
         super(ListwisePBMCrossEncoder, self).__init__(config)
         self.click_loss = rax.softmax_loss
 
-    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+    def get_training_loss(self, outputs: dict, batch: dict) -> Tuple[Array, dict]:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         click_loss = self.click_loss(
@@ -225,7 +227,7 @@ class ListwisePBMCrossEncoder(PBMCrossEncoder):
                 batch["clicks"].reshape(-1), 
                 where = (batch["query_ids"] != -1), 
                 segments = batch["query_ids"])
-        return mlm_loss + click_loss
+        return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
 
 class IPSCrossEncoder(CrossEncoder):
     """
@@ -239,14 +241,13 @@ class IPSCrossEncoder(CrossEncoder):
         super(IPSCrossEncoder, self).__init__(config)
         self.propensities = jnp.load(propensities_path)
 
-    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+    def get_training_loss(self, outputs: dict, batch: dict) -> Tuple[Array, dict]:
         mlm_loss = self.get_mlm_loss(outputs, batch)
         click_loss = self.click_loss(
             outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"] - 1].reshape(-1),
             batch["clicks"].reshape(-1),
         ).mean()
-        return mlm_loss + click_loss
-
+        return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
 
 class ListwiseIPSCrossEncoder(IPSCrossEncoder):
     "BERT-based cross-encoder with listwise click loss"
@@ -255,7 +256,7 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
         super(ListwiseIPSCrossEncoder, self).__init__(config, propensities_path)
         self.click_loss = rax.softmax_loss
 
-    def get_training_loss(self, outputs: dict, batch: dict) -> Array:
+    def get_training_loss(self, outputs: dict, batch: dict) -> Tuple[Array, dict]:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         click_loss = self.click_loss(
@@ -263,5 +264,5 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
                 batch["clicks"].reshape(-1), 
                 where = (batch["query_ids"] != -1), 
                 segments = batch["query_ids"])
-        return mlm_loss + click_loss
+        return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
     
