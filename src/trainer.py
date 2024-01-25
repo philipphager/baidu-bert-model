@@ -89,7 +89,7 @@ class Trainer:
                 }
             )
             self.mean_loss = jax.numpy.zeros(1)   
-            self.mean_losses = {k: v + losses[k].mean() for k,v in self.mean_losses.items()} 
+            self.mean_losses = {k: v + jax.numpy.zeros(1)  for k,v in self.mean_losses.items()} 
             self.mean_batch_size = 0
 
     @partial(
