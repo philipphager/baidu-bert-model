@@ -27,6 +27,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
 
     def __iter__(self):
         files = self.get_local_files()
+        query_no = -1
 
         for file in files:
             with gzip.open(file, "rb") as f:
@@ -37,6 +38,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
                     is_query = len(columns) <= 3
 
                     if is_query:
+                        query_no += 1
                         query = columns[QueryColumns.QUERY]
                     else:
                         title = columns[TrainColumns.TITLE]
@@ -62,6 +64,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
                         masked_tokens, labels = self.mask(tokens, token_types)
 
                         yield {
+                            "query_id": query_no,
                             "tokens": masked_tokens,
                             "attention_mask": attention_mask,
                             "token_types": token_types,

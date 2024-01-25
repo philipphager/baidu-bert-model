@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - data: base
-  - model: bert
+  - model: cross-encoder
   - user_const
 
 dataset_directory: "/beegfs/scratch/user/rdeffaye/baidu-ultr"

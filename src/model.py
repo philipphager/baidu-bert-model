@@ -3,6 +3,7 @@ from typing import Tuple, Any, Dict
 import flax.linen as nn
 import jax
 import optax
+import rax
 from jax import Array
 from jax.random import KeyArray
 from transformers import FlaxBertForPreTraining
@@ -83,7 +84,7 @@ class CrossEncoder(BertModel):
     def __init__(self, config: BertConfig):
         super(CrossEncoder, self).__init__(config)
         self.click_head = nn.Dense(1)
-        self.click_loss = optax.sigmoid_binary_cross_entropy
+        self.click_loss = rax.softmax_loss
 
     def forward(
         self,
@@ -133,14 +134,16 @@ class CrossEncoder(BertModel):
         click_loss = self.click_loss(
             outputs["click_probs"].reshape(-1),
             batch["clicks"].reshape(-1),
-        ).mean()
+            segments=batch["query_id"].reshape(-1),
+        )
         return mlm_loss + click_loss
+
 
 class PBMCrossEncoder(CrossEncoder):
     """
     BERT cross-encoder: https://arxiv.org/abs/1910.14424
     Query and document are concatenated in the input. The prediction targets are an MLM
-    task and a relevance prediction task using the CLS token. We use debiased clicks as 
+    task and a relevance prediction task using the CLS token. We use debiased clicks as
     the relevance signal.
     """
 
@@ -153,8 +156,12 @@ class PBMCrossEncoder(CrossEncoder):
         batch: Dict,
         params: Dict,
     ) -> Tuple[Dict, Any]:
-        outputs, query_document_embedding = super(PBMCrossEncoder, self).forward(batch, params)
-        outputs["exam"] = self.propensities.apply(params["propensities"], batch["positions"])
+        outputs, query_document_embedding = super(PBMCrossEncoder, self).forward(
+            batch, params
+        )
+        outputs["exam"] = self.propensities.apply(
+            params["propensities"], batch["positions"]
+        )
         return outputs, query_document_embedding
 
     def init(self, key: KeyArray, batch: Dict) -> Dict:
