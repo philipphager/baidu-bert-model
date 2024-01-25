@@ -84,11 +84,13 @@ class Trainer:
                         "train/global_step": step,
                     },
                     **{
-                    f"train/{k}": jax.device_get(v / min(step + 1, 1000)) for k,v in self.mean_losses.items()
+                        f"train/{k}": jax.device_get(v / min(step + 1, 1000)) for k,v in self.mean_losses.items()
                     }
                 }
             )
-            mean_loss = jax.numpy.zeros(1)   
+            self.mean_loss = jax.numpy.zeros(1)   
+            self.mean_losses = {k: v + losses[k].mean() for k,v in self.mean_losses.items()} 
+            self.mean_batch_size = 0
 
     @partial(
         jax.pmap,
