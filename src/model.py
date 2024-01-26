@@ -191,7 +191,7 @@ class ListwiseCrossEncoder(CrossEncoder):
         click_loss = rax.softmax_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
-            segments=batch["query_ids"],
+            segments=batch["query_id"],
         )
 
         return CrossEncoderLoss(
@@ -268,7 +268,7 @@ class ListwisePBMCrossEncoder(PBMCrossEncoder):
         click_loss = rax.softmax_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
-            segments=batch["query_ids"],
+            segments=batch["query_id"],
         )
 
         return CrossEncoderLoss(
@@ -336,7 +336,7 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
             weights=weights,
-            segments=batch["query_ids"],
+            segments=batch["query_id"],
         )
 
         return CrossEncoderLoss(
