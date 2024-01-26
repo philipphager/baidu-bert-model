@@ -11,6 +11,8 @@ from jax.tree_util import tree_map
 from src.const import (
     TrainColumns,
     QueryColumns,
+    MISSING_TITLE,
+    WHAT_OTHER_PEOPLE_SEARCHED_TITLE,
     TOKEN_OFFSET,
     IGNORE_LABEL_TOKEN,
 )
@@ -41,17 +43,24 @@ class CrossEncoderPretrainDataset(IterableDataset):
 
                     if is_query:
                         query_no += 1
+                        position = 0
                         query = columns[QueryColumns.QUERY]
                     else:
+
                         title = columns[TrainColumns.TITLE]
                         abstract = columns[TrainColumns.ABSTRACT]
                         click = float(columns[TrainColumns.CLICK])
-                        position = int(columns[TrainColumns.POS])
 
-                        if title in set(self.ignored_titles):
-                            # Skipping documents during training based on their titles.
-                            # Used to ignore missing or navigational items.
+                        if title == MISSING_TITLE:
+                            # Drop results with "-" as content. The dropped item
+                            # is reflected in the item position, e.g.: 1, [drop], 3, ...
+                            position += 1
                             continue
+                        if title == WHAT_OTHER_PEOPLE_SEARCHED_TITLE:
+                            # Skipping item "what other people searched for". The skip
+                            # is not reflected in the item position: 1, [skip], 2, ...
+                            continue
+                        position += 1
 
                         tokens, token_types = preprocess(
                             query=query,
