@@ -1,16 +1,16 @@
 from pathlib import Path
 
+import flax
 import hydra
 import jax
 import numpy as np
 import torch
+from flax.training import checkpoints
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 
-import flax
-from flax.training import checkpoints
-flax.config.update('flax_use_orbax_checkpointing', False)
+flax.config.update("flax_use_orbax_checkpointing", False)
 
 import wandb
 from src.const import (
@@ -38,12 +38,14 @@ def main(config: DictConfig):
         special_tokens=SPECIAL_TOKENS,
         segment_types=SEGMENT_TYPES,
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
-        batch_size = config.per_device_train_batch_size,
+        batch_size=config.per_device_train_batch_size,
     )
 
-    train_loader = DataLoader(train_dataset, 
-                              batch_size = train_dataset.get_batch_size() * jax.device_count(), 
-                              collate_fn=train_dataset.collate_fn)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=train_dataset.get_batch_size() * jax.device_count(),
+        collate_fn=train_dataset.collate_fn,
+    )
 
     model = instantiate(config.model)
 
@@ -59,10 +61,12 @@ def main(config: DictConfig):
             save_code=True,
         )
     trained_state = trainer.train(model, train_loader)
-    checkpoints.save_checkpoint(ckpt_dir=config.output_dir,
-                            target=trained_state,
-                            step=config.max_steps,
-                            overwrite=True)
+    checkpoints.save_checkpoint(
+        ckpt_dir=config.output_dir,
+        target=trained_state,
+        step=config.max_steps,
+        overwrite=True,
+    )
 
 
 if __name__ == "__main__":
