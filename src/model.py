@@ -96,7 +96,6 @@ class CrossEncoder(BertModel):
     def __init__(self, config: BertConfig):
         super(CrossEncoder, self).__init__(config)
         self.click_head = nn.Dense(1)
-        self.click_loss = rax.pointwise_sigmoid_loss
         self.loss_dataclass = CrossEncoderLoss
 
     def forward(
@@ -150,7 +149,7 @@ class CrossEncoder(BertModel):
     def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        click_loss = self.click_loss(
+        click_loss = rax.pointwise_sigmoid_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
         ).mean()
@@ -185,12 +184,11 @@ class ListwiseCrossEncoder(CrossEncoder):
 
     def __init__(self, config: BertConfig):
         super(ListwiseCrossEncoder, self).__init__(config)
-        self.click_loss = rax.softmax_loss
 
     def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        click_loss = self.click_loss(
+        click_loss = rax.softmax_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
             segments=batch["query_ids"],
@@ -244,7 +242,7 @@ class PBMCrossEncoder(CrossEncoder):
     def get_loss(self, outputs: PBMCrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        click_loss = self.click_loss(
+        click_loss = rax.pointwise_sigmoid_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
         ).mean()
@@ -257,16 +255,17 @@ class PBMCrossEncoder(CrossEncoder):
 
 
 class ListwisePBMCrossEncoder(PBMCrossEncoder):
-    "BERT-based cross-encoder with listwise click loss"
+    """
+    BERT-based cross-encoder with listwise click loss
+    """
 
     def __init__(self, config: BertConfig):
         super(ListwisePBMCrossEncoder, self).__init__(config)
-        self.click_loss = rax.softmax_loss
 
     def get_loss(self, outputs: PBMCrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        click_loss = self.click_loss(
+        click_loss = rax.softmax_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
             segments=batch["query_ids"],
@@ -298,7 +297,9 @@ class IPSCrossEncoder(CrossEncoder):
         weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
         weights = weights.clip(max=self.max_weight)
 
-        click_loss = self.click_loss(
+        print("Pos", batch["positions"], "Weights", weights)
+
+        click_loss = rax.pointwise_sigmoid_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
             weights=weights,
@@ -312,11 +313,12 @@ class IPSCrossEncoder(CrossEncoder):
 
 
 class ListwiseIPSCrossEncoder(IPSCrossEncoder):
-    "BERT-based cross-encoder with listwise click loss"
+    """
+    BERT-based cross-encoder with listwise click loss
+    """
 
     def __init__(self, config: BertConfig, propensities_path: str):
         super(ListwiseIPSCrossEncoder, self).__init__(config, propensities_path)
-        self.click_loss = rax.softmax_loss
 
     def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
@@ -324,7 +326,7 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
         weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
         weights = weights.clip(max=self.max_weight)
 
-        click_loss = self.click_loss(
+        click_loss = rax.softmax_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
             weights=weights,
