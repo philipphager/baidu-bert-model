@@ -28,6 +28,7 @@ class Trainer:
     def __init__(
         self,
         seed: int,
+        learning_rate: float,
         weight_decay: float,
         max_steps: int,
         log_metrics: bool,
@@ -36,7 +37,11 @@ class Trainer:
     ):
         self.seed = seed
         self.optimizer = optax.adamw(
-            learning_rate=5e-5, b1=0.9, b2=0.98, eps=1e-8, weight_decay=weight_decay
+            learning_rate=learning_rate,
+            b1=0.9,
+            b2=0.98,
+            eps=1e-8,
+            weight_decay=weight_decay,
         )
         self.max_steps = max_steps
         self.progress_bar = progress_bar
