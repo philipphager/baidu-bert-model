@@ -297,8 +297,6 @@ class IPSCrossEncoder(CrossEncoder):
         weights = 1 / self.propensities[batch["positions"]].reshape(-1)
         weights = weights.clip(max=self.max_weight)
 
-        print("Pos", batch["positions"], "Weights", weights)
-
         click_loss = rax.pointwise_sigmoid_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
