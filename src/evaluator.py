@@ -37,7 +37,7 @@ class Evaluator:
 
     @partial(jax.jit, static_argnums = (0, 1))
     def _eval_step(self, model, params, batch):
-        relevances = model.get_relevance_score(batch, params = params)
+        relevances = model.predict_relevance(batch, params = params)
         return {metric_name: metric(relevances.squeeze(), batch["label"]) 
                 for metric_name, metric in self.metrics.items()}
 

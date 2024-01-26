@@ -68,19 +68,11 @@ class Trainer:
         return flax.jax_utils.unreplicate(state)
     
     def track(self, step: int, losses: BertLoss):
-        self.mean_losses.add(losses.mean())
+        self.mean_losses = self.mean_losses.add(losses.mean())
 
         if self.log_metrics and step % 1000 == 0:
-            wandb.log(
-                {
-                    **{
-                        "train/global_step": step,
-                    },
-                    **{
-                        f"train/{k}": jax.device_get(v / min(step + 1, 1000)) for k,v in self.mean_losses.__dict__.items()
-                    }
-                }
-            )
+            wandb.log({"train/global_step": step} | {f"train/{k}": jax.device_get(v / min(step + 1, 1000)) 
+                                                        for k,v in self.mean_losses.__dict__.items()})
             self.mean_losses = losses.__class__()
 
     @partial(
@@ -94,7 +86,8 @@ class Trainer:
     ) -> Tuple[TrainState, BertLoss]:
         def loss_fn(params):
             outputs = state.apply_fn(batch, params=params)
-            return model.get_training_loss(outputs, batch)
+            losses = model.get_loss(outputs, batch)
+            return losses.loss, losses
 
         (_, losses), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
         state = state.apply_gradients(grads=jax.lax.pmean(grads, axis_name="batch"))
