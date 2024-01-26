@@ -4,8 +4,6 @@ defaults:
   - model: bert
   - user_const
 
-dataset_directory: "/beegfs/scratch/user/rdeffaye/baidu-ultr"
-output_dir: "output/"
 seed: 2024
 max_steps: 2_000_000
 learning_rate: 5e-5
