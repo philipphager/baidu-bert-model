@@ -2,11 +2,11 @@ import gzip
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-import torch
 import flax.struct
 import numpy as np
-from torch.utils.data import IterableDataset
+import torch
 from jax.tree_util import tree_map
+from torch.utils.data import IterableDataset
 
 from src.const import (
     TrainColumns,
@@ -16,6 +16,7 @@ from src.const import (
     TOKEN_OFFSET,
     IGNORE_LABEL_TOKEN,
 )
+
 
 @flax.struct.dataclass
 class CrossEncoderPretrainDataset(IterableDataset):
@@ -27,7 +28,6 @@ class CrossEncoderPretrainDataset(IterableDataset):
     special_tokens: Dict[str, int]
     segment_types: Dict[str, int]
     ignored_titles: List[bytes]
-    batch_size: int
 
     def __iter__(self):
         files = self.get_local_files()
@@ -46,7 +46,6 @@ class CrossEncoderPretrainDataset(IterableDataset):
                         position = 0
                         query = columns[QueryColumns.QUERY]
                     else:
-
                         title = columns[TrainColumns.TITLE]
                         abstract = columns[TrainColumns.ABSTRACT]
                         click = float(columns[TrainColumns.CLICK])
@@ -85,9 +84,7 @@ class CrossEncoderPretrainDataset(IterableDataset):
                         }
 
     def mask(
-        self,
-        tokens: np.ndarray,
-        token_types: np.ndarray
+        self, tokens: np.ndarray, token_types: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
         tokens = tokens.copy()
 
@@ -131,12 +128,10 @@ class CrossEncoderPretrainDataset(IterableDataset):
             worker_id = info.id
 
         return [f for i, f in enumerate(self.files) if i % worker_num == worker_id]
-    
-    def collate_fn(self, batch):
+
+    @staticmethod
+    def collate_fn(batch):
         return tree_map(np.asarray, torch.utils.data.default_collate(batch))
-    
-    def get_batch_size(self):
-        return self.batch_size
 
 
 def split_idx(text: bytes, offset: int) -> List[int]:
@@ -181,6 +176,7 @@ def preprocess(
 
     return tokens, token_types
 
+
 def collate_for_eval(
         batch: List[dict], 
         max_tokens: int, 
@@ -207,9 +203,9 @@ def collate_for_eval(
         collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
 
     return {
-        "tokens": np.stack(collated["tokens"], axis = 0),
-        "attention_mask": np.stack(collated["attention_mask"], axis = 0),
-        "token_types": np.stack(collated["token_types"], axis = 0),
+        "tokens": np.stack(collated["tokens"], axis=0),
+        "attention_mask": np.stack(collated["attention_mask"], axis=0),
+        "token_types": np.stack(collated["token_types"], axis=0),
         "label": np.asarray(b["label"]),
         "frequency_bucket": b["frequency_bucket"],
     }
