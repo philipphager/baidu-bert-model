@@ -290,7 +290,7 @@ class IPSCrossEncoder(CrossEncoder):
         self.propensities = jnp.load(propensities_path)
         self.max_weight = 10
 
-    def get_training_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
+    def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         ips_weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
@@ -313,7 +313,7 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
         super(ListwiseIPSCrossEncoder, self).__init__(config, propensities_path)
         self.click_loss = rax.softmax_loss
 
-    def get_training_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
+    def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         ips_weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
