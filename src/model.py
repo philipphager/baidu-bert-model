@@ -89,7 +89,7 @@ class CrossEncoder(BertModel):
     def __init__(self, config: BertConfig):
         super(CrossEncoder, self).__init__(config)
         self.click_head = nn.Dense(1)
-        self.click_loss = optax.sigmoid_binary_cross_entropy
+        self.click_loss = rax.pointwise_sigmoid_loss
         self.losses = ["mlm_loss", "click_loss"]
 
     def forward(
@@ -240,12 +240,14 @@ class IPSCrossEncoder(CrossEncoder):
     def __init__(self, config: BertConfig, propensities_path: str):
         super(IPSCrossEncoder, self).__init__(config)
         self.propensities = jnp.load(propensities_path)
+        self.max_weight = 10
 
     def get_training_loss(self, outputs: dict, batch: dict) -> Tuple[Array, dict]:
         mlm_loss = self.get_mlm_loss(outputs, batch)
         click_loss = self.click_loss(
-            outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"] - 1].reshape(-1),
+            outputs["click_probs"].reshape(-1),
             batch["clicks"].reshape(-1),
+            weights=(1 / self.propensities).clip(self.max_weight),
         ).mean()
         return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
 
@@ -263,6 +265,7 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
                 outputs["click_probs"].reshape(-1) + self.propensities[batch["positions"] - 1].reshape(-1), 
                 batch["clicks"].reshape(-1), 
                 where = (batch["query_ids"] != -1), 
+                weights=(1 / self.propensities).clip(self.max_weight),
                 segments = batch["query_ids"])
         return mlm_loss + click_loss, {"mlm_loss": mlm_loss, "click_loss": click_loss}
     
