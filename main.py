@@ -38,12 +38,11 @@ def main(config: DictConfig):
         special_tokens=SPECIAL_TOKENS,
         segment_types=SEGMENT_TYPES,
         ignored_titles=[MISSING_TITLE, WHAT_OTHER_PEOPLE_SEARCHED_TITLE],
-        batch_size=config.per_device_train_batch_size,
     )
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=train_dataset.get_batch_size() * jax.device_count(),
+        batch_size=config.per_device_train_batch_size * jax.device_count(),
         collate_fn=train_dataset.collate_fn,
     )
 

@@ -27,7 +27,6 @@ class CrossEncoderPretrainDataset(IterableDataset):
     special_tokens: Dict[str, int]
     segment_types: Dict[str, int]
     ignored_titles: List[bytes]
-    batch_size: int
 
     def __iter__(self):
         files = self.get_local_files()
@@ -134,9 +133,6 @@ class CrossEncoderPretrainDataset(IterableDataset):
     
     def collate_fn(self, batch):
         return tree_map(np.asarray, torch.utils.data.default_collate(batch))
-    
-    def get_batch_size(self):
-        return self.batch_size
 
 
 def split_idx(text: bytes, offset: int) -> List[int]:
