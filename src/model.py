@@ -213,7 +213,7 @@ class PBMCrossEncoder(CrossEncoder):
 
     def __init__(self, config: BertConfig):
         super(PBMCrossEncoder, self).__init__(config)
-        self.propensities = nn.Embed(25, 1)
+        self.propensities = nn.Embed(50, 1)
 
     def forward(
         self,
@@ -222,11 +222,13 @@ class PBMCrossEncoder(CrossEncoder):
     ) -> PBMCrossEncoderOutput:
         cse = super(PBMCrossEncoder, self).forward(batch, params)
         examination = self.propensities.apply(
-            params["propensities"], batch["positions"]
+            params["propensities"],
+            batch["positions"],
         )
+        click = examination + cse.relevance
 
         return PBMCrossEncoderOutput(
-            click=cse.click,
+            click=click,
             relevance=cse.relevance,
             examination=examination,
             logits=cse.logits,
@@ -243,7 +245,7 @@ class PBMCrossEncoder(CrossEncoder):
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         click_loss = self.click_loss(
-            outputs.click.reshape(-1) + outputs.examination.reshape(-1),
+            outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
         ).mean()
 
@@ -265,7 +267,7 @@ class ListwisePBMCrossEncoder(PBMCrossEncoder):
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         click_loss = self.click_loss(
-            outputs.click.reshape(-1) + outputs.examination.reshape(-1),
+            outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
             segments=batch["query_ids"],
         )
@@ -293,11 +295,13 @@ class IPSCrossEncoder(CrossEncoder):
     def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        ips_weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
+        weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
+        weights = weights.clip(max=self.max_weight)
+
         click_loss = self.click_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
-            weights=ips_weights.clip(self.max_weight),
+            weights=weights,
         ).mean()
 
         return CrossEncoderLoss(
@@ -317,11 +321,13 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
     def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        ips_weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
+        weights = 1 / self.propensities[batch["positions"] - 1].reshape(-1)
+        weights = weights.clip(max=self.max_weight)
+
         click_loss = self.click_loss(
             outputs.click.reshape(-1),
             batch["clicks"].reshape(-1),
-            weights=ips_weights.clip(self.max_weight),
+            weights=weights,
             segments=batch["query_ids"],
         )
 
