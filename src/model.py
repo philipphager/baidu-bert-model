@@ -9,7 +9,6 @@ from jax import Array
 from jax.random import KeyArray
 from transformers import FlaxBertForPreTraining
 from transformers.models.bert.configuration_bert import BertConfig
-from transformers.models.bert.modeling_flax_bert import FlaxBertLMPredictionHead
 
 from src.struct import BertLoss, CrossEncoderLoss
 from src.struct import BertOutput, CrossEncoderOutput, PBMCrossEncoderOutput
@@ -23,7 +22,6 @@ class BertModel(FlaxBertForPreTraining):
 
     def __init__(self, config: BertConfig):
         super(BertModel, self).__init__(config)
-        self.mlm_head = FlaxBertLMPredictionHead(config=config)
         self.mlm_loss = optax.softmax_cross_entropy_with_integer_labels
         self.loss_dataclass = BertLoss
 
@@ -42,7 +40,6 @@ class BertModel(FlaxBertForPreTraining):
             return_dict=True,
         )
         sequence_output, query_document_embedding = outputs[:2]
-        logits = self.mlm_head.apply(params["mlm_head"], sequence_output)
 
         return BertOutput(
             logits=logits,
@@ -59,12 +56,10 @@ class BertModel(FlaxBertForPreTraining):
             head_mask=None,
             return_dict=True,
         )
-        mlm_params = self.mlm_head.init(key, outputs[0])
 
         return {
             "bert": self.params["bert"],
             "cls": self.params["cls"],
-            "mlm_head": mlm_params,
         }
 
     def get_loss(self, outputs: BertOutput, batch: Dict) -> BertLoss:
