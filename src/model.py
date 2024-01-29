@@ -37,13 +37,12 @@ class BertModel(FlaxBertForPreTraining):
             token_type_ids=batch["token_types"],
             position_ids=None,
             head_mask=None,
-            return_dict=True,
+            output_hidden_states=True,
         )
-        sequence_output, query_document_embedding = outputs[:2]
 
         return BertOutput(
-            logits=logits,
-            query_document_embedding=query_document_embedding,
+            logits=outputs.prediction_logits,
+            query_document_embedding=outputs.hidden_states[-1][:, 0],
         )
 
     def init(self, key: KeyArray, batch: dict) -> dict:
