@@ -29,6 +29,8 @@ class BertModel(FlaxBertForPreTraining):
         self,
         batch: dict,
         params: dict,
+        train: bool,
+        **kwargs,
     ) -> BertOutput:
         outputs = self.module.apply(
             {"params": {"bert": params["bert"], "cls": params["cls"]}},
@@ -38,6 +40,8 @@ class BertModel(FlaxBertForPreTraining):
             position_ids=None,
             head_mask=None,
             output_hidden_states=True,
+            deterministic=not train,
+            **kwargs,
         )
 
         return BertOutput(
@@ -96,6 +100,8 @@ class CrossEncoder(BertModel):
         self,
         batch: Dict,
         params: Dict,
+        train: bool,
+        **kwargs,
     ) -> CrossEncoderOutput:
         outputs = self.module.apply(
             {"params": {"bert": params["bert"], "cls": params["cls"]}},
@@ -105,6 +111,8 @@ class CrossEncoder(BertModel):
             position_ids=None,
             head_mask=None,
             output_hidden_states=True,
+            deterministic=not train,
+            **kwargs,
         )
 
         query_document_embedding = outputs.hidden_states[-1][:, 0]
@@ -164,6 +172,7 @@ class CrossEncoder(BertModel):
             position_ids=None,
             head_mask=None,
             output_hidden_states=True,
+            deterministic=True,
         )
         query_document_embedding = outputs.hidden_states[-1][:, 0]
         click_scores = self.click_head.apply(
@@ -212,8 +221,9 @@ class PBMCrossEncoder(CrossEncoder):
         self,
         batch: Dict,
         params: Dict,
+        train: bool,
     ) -> PBMCrossEncoderOutput:
-        cse = super(PBMCrossEncoder, self).forward(batch, params)
+        cse = super(PBMCrossEncoder, self).forward(batch, params, train)
         examination = self.propensities.apply(
             params["propensities"],
             batch["positions"],

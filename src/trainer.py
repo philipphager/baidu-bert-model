@@ -9,6 +9,7 @@ from jax import Array
 import optax
 import wandb
 from flax.training.common_utils import shard
+from chex import PRNGKey
 from flax.training.train_state import TrainState
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -87,10 +88,17 @@ class Trainer:
         static_broadcasted_argnums=(0, 1),
     )
     def _train_step(
-        self, model, state: TrainState, batch: dict
-    ) -> Tuple[TrainState, BertLoss]:
+            self, model, state: TrainState, batch: dict, step: int, key: PRNGKey
+    ) -> Tuple[TrainState]:
+        dropout_rng = jax.random.fold_in(key=key, data=step)
+
         def loss_fn(params):
-            outputs = state.apply_fn(batch, params=params)
+            outputs = state.apply_fn(
+                batch,
+                params=params,
+                train=True,
+                rngs={"dropout": dropout_rng}
+            )
             losses = model.get_loss(outputs, batch)
             return losses.loss, losses
 
