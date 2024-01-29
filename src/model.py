@@ -104,10 +104,11 @@ class CrossEncoder(BertModel):
             token_type_ids=batch["token_types"],
             position_ids=None,
             head_mask=None,
-            return_dict=True,
+            output_hidden_states=True,
         )
-        sequence_output, query_document_embedding = outputs[:2]
-        logits = self.mlm_head.apply(params["mlm_head"], sequence_output)
+
+        query_document_embedding = outputs.hidden_states[-1][:, 0]
+
         click_scores = self.click_head.apply(
             params["click_head"], query_document_embedding
         )
@@ -115,7 +116,7 @@ class CrossEncoder(BertModel):
         return CrossEncoderOutput(
             click=click_scores,
             relevance=click_scores,
-            logits=logits,
+            logits=outputs.prediction_logits,
             query_document_embedding=query_document_embedding,
         )
 
@@ -127,16 +128,16 @@ class CrossEncoder(BertModel):
             token_type_ids=batch["token_types"],
             position_ids=None,
             head_mask=None,
-            return_dict=True,
+            output_hidden_states=True,
         )
-        mlm_key, click_key = jax.random.split(key, 2)
-        mlm_params = self.mlm_head.init(mlm_key, outputs[0])
-        click_params = self.click_head.init(click_key, outputs[1])
+
+        key, click_key = jax.random.split(key, 2)
+        query_document_embedding = outputs.hidden_states[-1][:, 0]
+        click_params = self.click_head.init(click_key, query_document_embedding)
 
         return {
             "bert": self.params["bert"],
             "cls": self.params["cls"],
-            "mlm_head": mlm_params,
             "click_head": click_params,
         }
 
@@ -162,9 +163,9 @@ class CrossEncoder(BertModel):
             token_type_ids=batch["token_types"],
             position_ids=None,
             head_mask=None,
-            return_dict=True,
+            output_hidden_states=True,
         )
-        _, query_document_embedding = outputs[:2]
+        query_document_embedding = outputs.hidden_states[-1][:, 0]
         click_scores = self.click_head.apply(
             params["click_head"], query_document_embedding
         )
