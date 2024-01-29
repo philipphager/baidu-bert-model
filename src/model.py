@@ -222,8 +222,9 @@ class PBMCrossEncoder(CrossEncoder):
         batch: Dict,
         params: Dict,
         train: bool,
+        **kwargs,
     ) -> PBMCrossEncoderOutput:
-        cse = super(PBMCrossEncoder, self).forward(batch, params, train)
+        cse = super(PBMCrossEncoder, self).forward(batch, params, train, **kwargs)
         examination = self.propensities.apply(
             params["propensities"],
             batch["positions"],
