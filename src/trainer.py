@@ -5,9 +5,9 @@ from typing import Tuple
 
 import flax
 import jax
-from jax import Array
 import optax
 import wandb
+from chex import PRNGKey
 from flax.training.common_utils import shard
 from flax.training.train_state import TrainState
 from torch.utils.data import DataLoader
@@ -66,12 +66,12 @@ class Trainer:
         for step, batch in enumerate(tqdm(train_loader, disable=not self.progress_bar)):
             if step == self.max_steps:
                 break
-                
-            state, losses = self._train_step(model, state, shard(batch))
+
+            state, losses = self._train_step(model, state, shard(batch), step, key)
             self.track(step, losses)
 
         return flax.jax_utils.unreplicate(state)
-    
+
     def track(self, step: int, losses: BertLoss):
         self.mean_losses = self.mean_losses.add(losses.mean())
 
@@ -83,14 +83,23 @@ class Trainer:
     @partial(
         jax.pmap,
         axis_name="batch",
-        in_axes=(None, None, 0, 0),
+        in_axes=(None, None, 0, 0, None, None),
         static_broadcasted_argnums=(0, 1),
     )
     def _train_step(
-        self, model, state: TrainState, batch: dict
+        self,
+        model,
+        state: TrainState,
+        batch: dict,
+        step: int,
+        key: PRNGKey,
     ) -> Tuple[TrainState, BertLoss]:
+        dropout_rng = jax.random.fold_in(key=key, data=step)
+
         def loss_fn(params):
-            outputs = state.apply_fn(batch, params=params)
+            outputs = state.apply_fn(
+                batch, params=params, train=True, rngs={"dropout": dropout_rng}
+            )
             losses = model.get_loss(outputs, batch)
             return losses.loss, losses
 
