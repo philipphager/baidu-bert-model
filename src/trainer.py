@@ -83,7 +83,7 @@ class Trainer:
     @partial(
         jax.pmap,
         axis_name="batch",
-        in_axes=(None, None, 0, 0),
+        in_axes=(None, None, 0, 0, None, None),
         static_broadcasted_argnums=(0, 1),
     )
     def _train_step(
@@ -93,7 +93,7 @@ class Trainer:
         batch: dict,
         step: int,
         key: PRNGKey,
-    ) -> Tuple[TrainState]:
+    ) -> Tuple[TrainState, BertLoss]:
         dropout_rng = jax.random.fold_in(key=key, data=step)
 
         def loss_fn(params):
