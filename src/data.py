@@ -184,31 +184,45 @@ def collate_for_rels(
         special_tokens: Dict[str, int],
         segment_types: Dict[str, int],
     ) -> dict:
-    b = batch[0]
-    collated = {"tokens": [], "attention_mask": [], "token_types": []}
-    n_docs = len(b["label"])
+    collated = {"tokens": [], 
+                "attention_mask": [], 
+                "token_types": [],
+                "label": [],
+                "frequency_bucket":[],}
     
-    for k in range(n_docs):
-        query_tokens = [special_tokens["CLS"]] + b["query"] + [special_tokens["SEP"]]
-        doc_tokens = b["title"][k] + [special_tokens["SEP"]] + b["abstract"][k] + [special_tokens["SEP"]]
-        tokens = query_tokens + doc_tokens
-        tokens = tokens[:max_tokens] + max(max_tokens - len(tokens), 0) * [special_tokens["PAD"]]
-        collated["tokens"].append(np.asarray(tokens))
 
+    for b in batch:
+        query_tokens = np.concatenate([np.asarray([special_tokens["CLS"]]), 
+                                        b["query"], 
+                                        np.asarray([special_tokens["SEP"]])])
         query_token_types = [segment_types["QUERY"]] * len(query_tokens)
-        doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
-        token_types = query_token_types + doc_token_types
-        token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
-        collated["token_types"].append(np.asarray(token_types))
 
-        collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
+        collated["label"].append(b["label"])
+        collated["frequency_bucket"].append(b["frequency_bucket"])
+        
+        for k in range(b["n"]):
+            doc_tokens = np.concatenate([b["title"][k], 
+                                        np.asarray([special_tokens["SEP"]]), 
+                                        b["abstract"][k], 
+                                        np.asarray([special_tokens["SEP"]])])
+            tokens = np.concatenate([query_tokens, doc_tokens])
+            tokens = np.concatenate([tokens[:max_tokens], 
+                                    np.full(max(max_tokens - len(tokens), 0) , special_tokens["PAD"])])
+            collated["tokens"].append(tokens)
+
+            doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
+            token_types = query_token_types + doc_token_types
+            token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
+            collated["token_types"].append(np.asarray(token_types))
+
+            collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
 
     return {
         "tokens": np.stack(collated["tokens"], axis=0),
         "attention_mask": np.stack(collated["attention_mask"], axis=0),
         "token_types": np.stack(collated["token_types"], axis=0),
-        "label": np.asarray(b["label"]),
-        "frequency_bucket": b["frequency_bucket"],
+        "label": np.concatenate(collated["label"]),
+        "frequency_bucket": np.asarray(collated["frequency_bucket"]),
     }
 
 def collate_for_clicks(
@@ -217,31 +231,46 @@ def collate_for_clicks(
     special_tokens: Dict[str, int],
     segment_types: Dict[str, int],
 ) -> dict:
-    b = batch[0]
-    collated = {"tokens": [], "attention_mask": [], "token_types": []}
-    n_docs = len(b["click"])
+    collated = {"query_id": [], 
+                "tokens": [], 
+                "attention_mask": [], 
+                "token_types": [],
+                "click": [],
+                "position": [],}
     
-    for k in range(n_docs):
-        query_tokens = [special_tokens["CLS"]] + b["query"] + [special_tokens["SEP"]]
-        doc_tokens = b["title"][k] + [special_tokens["SEP"]] + b["abstract"][k] + [special_tokens["SEP"]]
-        tokens = query_tokens + doc_tokens
-        tokens = tokens[:max_tokens] + max(max_tokens - len(tokens), 0) * [special_tokens["PAD"]]
-        collated["tokens"].append(np.asarray(tokens))
-
+    for b in batch:
+        query_tokens = np.concatenate([np.asarray([special_tokens["CLS"]]), 
+                                    b["query"], 
+                                    np.asarray([special_tokens["SEP"]])])
         query_token_types = [segment_types["QUERY"]] * len(query_tokens)
-        doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
-        token_types = query_token_types + doc_token_types
-        token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
-        collated["token_types"].append(np.asarray(token_types))
 
-        collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
+        for k in range(b["n"]):
+            doc_tokens = np.concatenate([b["title"][k], 
+                                        np.asarray([special_tokens["SEP"]]), 
+                                        b["abstract"][k], 
+                                        np.asarray([special_tokens["SEP"]])])
+            tokens = np.concatenate([query_tokens, doc_tokens])
+            tokens = np.concatenate([tokens[:max_tokens], 
+                                    np.full(max(max_tokens - len(tokens), 0) , special_tokens["PAD"])])
+            collated["tokens"].append(tokens)
+
+            doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
+            token_types = query_token_types + doc_token_types
+            token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
+            collated["token_types"].append(np.asarray(token_types))
+
+            collated["attention_mask"].append(tokens > special_tokens["PAD"])
+            collated["query_id"].append(b["query_id"])
+            collated["click"].append(b["click"][k])
+            collated["position"].append(b["position"][k])
 
     return {
+        "query_id": np.asarray(collated["query_id"]),
         "tokens": np.stack(collated["tokens"], axis=0),
         "attention_mask": np.stack(collated["attention_mask"], axis=0),
         "token_types": np.stack(collated["token_types"], axis=0),
-        "click": np.asarray(b["click"]),
-        "position": np.asarray(b["position"]),
+        "click": np.asarray(collated["click"]),
+        "position": np.asarray(collated["position"]),
     }
 
 class LabelEncoder:

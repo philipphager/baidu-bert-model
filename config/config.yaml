@@ -9,6 +9,7 @@ max_steps: 2_000_000
 learning_rate: 5e-5
 weight_decay: 0.01
 per_device_train_batch_size: 64
+per_device_eval_batch_size: 6
 progress_bar: False
 resume_from_checkpoint: False
 log_metrics: True

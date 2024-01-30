@@ -28,10 +28,11 @@ def load_clicks(config: DictConfig, split: str):
         return batch
 
     dataset = load_dataset(
-        config.data.name,
+        "philipphager/baidu-ultr_baidu-mlm-ctr",
         name="clicks",
         split=split,
         cache_dir=config.cache_dir,
+        trust_remote_code=True,
     )
     dataset.set_format("numpy")
 
@@ -45,10 +46,11 @@ def load_annotations(config: DictConfig, split="test"):
         return batch
 
     dataset = load_dataset(
-        config.data.name,
+        "philipphager/baidu-ultr_baidu-mlm-ctr",
         name="annotations",
         split=split,
         cache_dir=config.cache_dir,
+        trust_remote_code=True,
     )
     dataset.set_format("numpy")
 
@@ -63,17 +65,19 @@ def main(config: DictConfig):
     _, test_clicks = random_split(
         test_clicks,
         shuffle=True,
-        random_state=config.random_state,
+        random_state=config.seed,
         test_size=0.5,
     )
     collate_clicks = lambda batch: collate_for_clicks(batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES)
     click_loader = DataLoader(test_clicks, 
-                              batch_size = config.per_device_batch_size, 
+                              batch_size = config.per_device_eval_batch_size,# * jax.device_count(), 
                               collate_fn=collate_clicks)
 
     collate_rels = lambda batch: collate_for_rels(batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES)
     test_rels = load_annotations(config)
-    rels_loader = DataLoader(test_rels, batch_size = 1, collate_fn=collate_rels)
+    rels_loader = DataLoader(test_rels, 
+                             batch_size = 1, 
+                             collate_fn=collate_rels)
 
     model = instantiate(config.model)
     evaluator = Evaluator(click_metrics = CLICK_METRICS, rel_metrics = REL_METRICS, 

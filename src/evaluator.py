@@ -30,7 +30,7 @@ class Evaluator:
         metrics = []
         params = checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=None)["params"]
 
-        for batch in tqdm(loader, total = 7008, disable=not self.progress_bar):
+        for batch in tqdm(loader, disable=not self.progress_bar):
             metrics.append(self._eval_step_rels(model, params, batch))
 
         return {key: np.mean([m[key] for m in metrics]) for key in self.rel_metrics.keys()}
@@ -56,8 +56,9 @@ class Evaluator:
 
     @partial(jax.jit, static_argnums = (0, 1))
     def _eval_step_clicks(self, model, params, batch):
-        relevances = model.predict_relevance(batch, params = params)
-        return {metric_name: metric(relevances.squeeze(), batch["label"]) 
+        click_scores = model.forward(batch, params = params, train=False).click
+        return {metric_name: metric(click_scores.squeeze(), 
+                                    batch["click"],) 
                 for metric_name, metric in self.click_metrics.items()}
 
 

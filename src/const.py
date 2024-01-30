@@ -30,7 +30,7 @@ REL_METRICS = {"DCG@1": partial(rax.dcg_metric, topn=1),
                 "MRR@10": partial(rax.mrr_metric, topn=10),
                 "nDCG@10": partial(rax.ndcg_metric, topn=10),}
 
-CLICK_METRICS = {}
+CLICK_METRICS = {"log-likelihood": rax.pointwise_sigmoid_loss,}
 
 
 class QueryColumns(IntEnum):
