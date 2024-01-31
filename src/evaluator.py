@@ -9,7 +9,7 @@ from flax.training import checkpoints
 from torch.utils.data import DataLoader
 
 def dict_to_numpy(_dict: Dict[str, jax.Array]) -> Dict[str, np.ndarray]:
-    return {k: float(jax.device_get(v)) for k, v in _dict.items()}
+    return {k: jax.device_get(v) for k, v in _dict.items()}
 
 def collect_metrics(results: List[Dict[str, jax.Array]]) -> pd.DataFrame:
     """
