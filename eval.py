@@ -83,9 +83,12 @@ def main(config: DictConfig):
     evaluator = Evaluator(click_metrics = CLICK_METRICS, rel_metrics = REL_METRICS, 
                           ckpt_dir = config.output_dir, **OmegaConf.to_container(config))
 
-    metrics = evaluator.eval_clicks(model, click_loader)
-    metrics |= evaluator.eval_rels(model, rels_loader)
-    print(metrics)
+    clicks_df = evaluator.eval_clicks(model, click_loader)
+    rels_df = evaluator.eval_rels(model, rels_loader)
+    clicks_df.to_parquet(config.output_dir + "test_click.parquet")
+    rels_df.to_parquet(config.output_dir + "test_rel.parquet")
+
+    print(clicks_df.mean(axis=0).to_dict() | rels_df.mean(axis=0).to_dict())
 
 if __name__ == "__main__":
     main()
