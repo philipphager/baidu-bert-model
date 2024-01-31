@@ -1,4 +1,5 @@
 
-dataset_directory: "/path/to/dataset/"
-output_dir: "output/"
+dataset_directory: "/beegfs/scratch/user/rdeffaye/baidu-ultr/"
+output_dir: "/beegfs/scratch/user/rdeffaye/baidu-bert/runs/listwise-naive/"
+cache_dir: "/beegfs/scratch/user/rdeffaye/baidu-bert/datasets/"
 dataloader_num_workers: 6

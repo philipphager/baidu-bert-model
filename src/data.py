@@ -1,12 +1,13 @@
 import gzip
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import flax.struct
 import numpy as np
 import torch
 from jax.tree_util import tree_map
-from torch.utils.data import IterableDataset
+from torch.utils.data import Dataset, IterableDataset
+from sklearn.model_selection import train_test_split
 
 from src.const import (
     TrainColumns,
@@ -177,35 +178,134 @@ def preprocess(
     return tokens, token_types
 
 
-def collate_for_eval(
+def collate_for_rels(
         batch: List[dict], 
         max_tokens: int, 
         special_tokens: Dict[str, int],
         segment_types: Dict[str, int],
     ) -> dict:
-    b = batch[0]
-    collated = {"tokens": [], "attention_mask": [], "token_types": []}
-    n_docs = len(b["label"])
+    collated = {"tokens": [], 
+                "attention_mask": [], 
+                "token_types": [],
+                "label": [],
+                "frequency_bucket":[],}
     
-    for k in range(n_docs):
-        query_tokens = [special_tokens["CLS"]] + b["query"] + [special_tokens["SEP"]]
-        doc_tokens = b["title"][k] + [special_tokens["SEP"]] + b["abstract"][k] + [special_tokens["SEP"]]
-        tokens = query_tokens + doc_tokens
-        tokens = tokens[:max_tokens] + max(max_tokens - len(tokens), 0) * [special_tokens["PAD"]]
-        collated["tokens"].append(np.asarray(tokens))
 
+    for b in batch:
+        query_tokens = np.concatenate([np.asarray([special_tokens["CLS"]]), 
+                                        b["query"], 
+                                        np.asarray([special_tokens["SEP"]])])
         query_token_types = [segment_types["QUERY"]] * len(query_tokens)
-        doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
-        token_types = query_token_types + doc_token_types
-        token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
-        collated["token_types"].append(np.asarray(token_types))
 
-        collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
+        collated["label"].append(b["label"])
+        collated["frequency_bucket"].append(b["frequency_bucket"])
+        
+        for k in range(b["n"]):
+            doc_tokens = np.concatenate([b["title"][k], 
+                                        np.asarray([special_tokens["SEP"]]), 
+                                        b["abstract"][k], 
+                                        np.asarray([special_tokens["SEP"]])])
+            tokens = np.concatenate([query_tokens, doc_tokens])
+            tokens = np.concatenate([tokens[:max_tokens], 
+                                    np.full(max(max_tokens - len(tokens), 0) , special_tokens["PAD"])])
+            collated["tokens"].append(tokens)
+
+            doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
+            token_types = query_token_types + doc_token_types
+            token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
+            collated["token_types"].append(np.asarray(token_types))
+
+            collated["attention_mask"].append(np.asarray(tokens) > special_tokens["PAD"])
 
     return {
         "tokens": np.stack(collated["tokens"], axis=0),
         "attention_mask": np.stack(collated["attention_mask"], axis=0),
         "token_types": np.stack(collated["token_types"], axis=0),
-        "label": np.asarray(b["label"]),
-        "frequency_bucket": b["frequency_bucket"],
+        "label": np.concatenate(collated["label"]),
+        "frequency_bucket": np.asarray(collated["frequency_bucket"]),
     }
+
+def collate_for_clicks(
+    batch: List[dict], 
+    max_tokens: int, 
+    special_tokens: Dict[str, int],
+    segment_types: Dict[str, int],
+) -> dict:
+    collated = {"query_id": [], 
+                "tokens": [], 
+                "attention_mask": [], 
+                "token_types": [],
+                "click": [],
+                "position": [],}
+    
+    for b in batch:
+        query_tokens = np.concatenate([np.asarray([special_tokens["CLS"]]), 
+                                    b["query"], 
+                                    np.asarray([special_tokens["SEP"]])])
+        query_token_types = [segment_types["QUERY"]] * len(query_tokens)
+
+        for k in range(b["n"]):
+            doc_tokens = np.concatenate([b["title"][k], 
+                                        np.asarray([special_tokens["SEP"]]), 
+                                        b["abstract"][k], 
+                                        np.asarray([special_tokens["SEP"]])])
+            tokens = np.concatenate([query_tokens, doc_tokens])
+            tokens = np.concatenate([tokens[:max_tokens], 
+                                    np.full(max(max_tokens - len(tokens), 0) , special_tokens["PAD"])])
+            collated["tokens"].append(tokens)
+
+            doc_token_types = [segment_types["TEXT"]] * len(doc_tokens)
+            token_types = query_token_types + doc_token_types
+            token_types = token_types[:max_tokens] + max(max_tokens - len(token_types), 0) * [segment_types["PAD"]]
+            collated["token_types"].append(np.asarray(token_types))
+
+            collated["attention_mask"].append(tokens > special_tokens["PAD"])
+            collated["query_id"].append(b["query_id"])
+            collated["click"].append(b["click"][k])
+            collated["position"].append(b["position"][k])
+
+    return {
+        "query_id": np.asarray(collated["query_id"]),
+        "tokens": np.stack(collated["tokens"], axis=0),
+        "attention_mask": np.stack(collated["attention_mask"], axis=0),
+        "token_types": np.stack(collated["token_types"], axis=0),
+        "click": np.asarray(collated["click"]),
+        "position": np.asarray(collated["position"]),
+    }
+
+class LabelEncoder:
+    def __init__(self):
+        self.value2id = {}
+        self.max_id = 1
+
+    def __call__(self, x):
+        if x not in self.value2id:
+            self.value2id[x] = self.max_id
+            self.max_id += 1
+
+        return self.value2id[x]
+
+    def __len__(self):
+        return len(self.value2id)
+    
+def random_split(
+    dataset: Dataset,
+    shuffle: bool,
+    random_state: int,
+    test_size: float,
+    stratify: Optional[str] = None,
+):
+    """
+    Stratify a train/test split of a Huggingface dataset.
+    While huggingface implements stratification, this function enables stratification
+    on all columns, not only the dataset's class label.
+    """
+    idx = np.arange(len(dataset))
+    train_idx, test_idx = train_test_split(
+        idx,
+        stratify=dataset[stratify] if stratify else None,
+        shuffle=shuffle,
+        test_size=test_size,
+        random_state=random_state,
+    )
+    return dataset.select(train_idx), dataset.select(test_idx)
