@@ -384,7 +384,7 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
         super(ListwiseDLACrossEncoder, self).__init__(config)
         self.max_weight = 10
 
-    def get_loss(self, outputs: PBMCrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
+    def get_loss(self, outputs: PBMCrossEncoderOutput, batch: dict) -> DLALoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         examination_weights = self._normalize_weights(
@@ -445,11 +445,11 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
         else:
             probabilities = scores
 
-        # Normalize propensities by the item in first position and convert propensities
+        # Normalize propensities by the item in first position in each segment and convert propensities
         # to weights by computing weights as 1 / propensities:
         fism = first_item_segment_mask(segments)
         ssm = same_segment_mask(segments)
-        weights =  probabilities[fism] @ ssm[fism] / probabilities
+        weights =  probabilities @ jnp.where(fism[:, jnp.newaxis], ssm, jnp.zeros_like(ssm)) / probabilities
         # Mask padding and apply clipping
         weights = weights.clip(min=0, max=max_weight)
 
