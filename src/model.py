@@ -358,10 +358,12 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
         weights = 1 / self.propensities[batch["positions"]].reshape(-1)
         weights = weights.clip(max=self.max_weight)
 
+        labels = weights * batch["clicks"].reshape(-1)
+        labels = normalize_probabilities(labels, segments=batch["query_id"])
+
         click_loss = rax.softmax_loss(
-            outputs.click.reshape(-1),
-            batch["clicks"].reshape(-1),
-            weights=weights,
+            scores=outputs.click.reshape(-1),
+            labels=labels,
             segments=batch["query_id"],
         )
 
