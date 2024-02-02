@@ -72,14 +72,14 @@ class Evaluator:
     @partial(jax.jit, static_argnums = (0, 1))
     def _eval_step_rels(self, model, params, batch):
         relevances = model.predict_relevance(batch, params = params)
-        return {metric_name: metric(relevances.squeeze(), batch["label"]) 
+        return {metric_name: metric(relevances.squeeze(), batch["labels"]) 
                 for metric_name, metric in self.rel_metrics.items()}
 
     @partial(jax.jit, static_argnums = (0, 1))
     def _eval_step_clicks(self, model, params, batch):
         click_scores = model.forward(batch, params = params, train=False).click
         return {metric_name: metric(click_scores.squeeze(), 
-                                    batch["click"],) 
+                                    batch["clicks"],) 
                 for metric_name, metric in self.click_metrics.items()}
 
 

@@ -221,7 +221,7 @@ def collate_for_rels(
         "tokens": np.stack(collated["tokens"], axis=0),
         "attention_mask": np.stack(collated["attention_mask"], axis=0),
         "token_types": np.stack(collated["token_types"], axis=0),
-        "label": np.concatenate(collated["label"]),
+        "labels": np.concatenate(collated["label"]),
         "frequency_bucket": np.asarray(collated["frequency_bucket"]),
     }
 
@@ -236,7 +236,7 @@ def collate_for_clicks(
                 "attention_mask": [], 
                 "token_types": [],
                 "click": [],
-                "position": [],}
+                "positions": [],}
     
     for b in batch:
         query_tokens = np.concatenate([np.asarray([special_tokens["CLS"]]), 
@@ -269,8 +269,8 @@ def collate_for_clicks(
         "tokens": np.stack(collated["tokens"], axis=0),
         "attention_mask": np.stack(collated["attention_mask"], axis=0),
         "token_types": np.stack(collated["token_types"], axis=0),
-        "click": np.asarray(collated["click"]),
-        "position": np.asarray(collated["position"]),
+        "clicks": np.asarray(collated["click"]),
+        "positions": np.asarray(collated["position"]),
     }
 
 class LabelEncoder:
