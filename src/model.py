@@ -13,7 +13,7 @@ from jax.random import KeyArray
 from transformers import FlaxBertForPreTraining
 from transformers.models.bert.configuration_bert import BertConfig
 
-from src.struct import BertLoss, CrossEncoderLoss
+from src.struct import BertLoss, CrossEncoderLoss, DLALoss
 from src.struct import BertOutput, CrossEncoderOutput, PBMCrossEncoderOutput
 
 
@@ -388,10 +388,12 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
             segments=batch["query_id"],
         )
 
-        return CrossEncoderLoss(
+        return DLALoss(
             loss=mlm_loss + examination_loss + relevance_loss,
             mlm_loss=mlm_loss,
             click_loss=examination_loss + relevance_loss,
+            examination_loss=examination_loss,
+            relevance_loss=relevance_loss,
         )
 
 
