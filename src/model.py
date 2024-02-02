@@ -5,12 +5,16 @@ import jax
 import jax.numpy as jnp
 import optax
 import rax
+from functools import partial
 from jax import Array
+from jax._src.lax.lax import stop_gradient
 from jax.random import KeyArray
+from rax._src.segment_utils import segment_softmax, first_item_segment_mask, same_segment_mask
+from rax._src.utils import normalize_probabilities
 from transformers import FlaxBertForPreTraining
 from transformers.models.bert.configuration_bert import BertConfig
 
-from src.struct import BertLoss, CrossEncoderLoss
+from src.struct import BertLoss, CrossEncoderLoss, DLALoss
 from src.struct import BertOutput, CrossEncoderOutput, PBMCrossEncoderOutput
 
 
@@ -298,15 +302,15 @@ class IPSCrossEncoder(CrossEncoder):
         self.max_weight = 10
 
     def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
+        examination = self.propensities[batch["positions"]].reshape(-1)
+
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        weights = 1 / self.propensities[batch["positions"]].reshape(-1)
-        weights = weights.clip(max=self.max_weight)
-
-        click_loss = rax.pointwise_sigmoid_loss(
-            outputs.click.reshape(-1),
-            batch["clicks"].reshape(-1),
-            weights=weights,
+        click_loss = self.pointwise_sigmoid_ips(
+            examination=examination,
+            relevance=outputs.click.reshape(-1),
+            labels=batch["clicks"].reshape(-1),
+            max_weight=self.max_weight,
         ).mean()
 
         return CrossEncoderLoss(
@@ -316,10 +320,29 @@ class IPSCrossEncoder(CrossEncoder):
         )
 
     @staticmethod
+    def pointwise_sigmoid_ips(
+        examination: Array,
+        relevance: Array,
+        labels: Array,
+        max_weight: float = 10,
+    ) -> Array:
+        """
+        Numerically stable implementation of the pointwise IPS loss from Saito et al.:
+        https://dl.acm.org/doi/abs/10.1145/3336191.3371783
+        """
+        weights = 1 / examination
+        weights = weights.clip(min=0, max=max_weight)
+
+        log_p = jax.nn.log_sigmoid(relevance)
+        log_not_p = jax.nn.log_sigmoid(-relevance)
+
+        return -(weights * labels) * log_p - (1.0 - (weights * labels)) * log_not_p
+
+    @staticmethod
     def get_propensities(path, positions=50):
         propensities = jnp.zeros(positions)
         data = jnp.load(path)
-        return propensities.at[1:len(data) + 1].set(data)
+        return propensities.at[1 : len(data) + 1].set(data)
 
 
 class ListwiseIPSCrossEncoder(IPSCrossEncoder):
@@ -336,10 +359,12 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
         weights = 1 / self.propensities[batch["positions"]].reshape(-1)
         weights = weights.clip(max=self.max_weight)
 
+        labels = weights * batch["clicks"].reshape(-1)
+
         click_loss = rax.softmax_loss(
-            outputs.click.reshape(-1),
-            batch["clicks"].reshape(-1),
-            weights=weights,
+            scores=outputs.click.reshape(-1),
+            labels=labels,
+            label_fn=partial(normalize_probabilities, segments=batch["query_id"]),
             segments=batch["query_id"],
         )
 
@@ -348,3 +373,84 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
             mlm_loss=mlm_loss,
             click_loss=click_loss,
         )
+
+
+class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
+    """
+    Implementation of the Dual Learning Algorithm from Ai et al, 2018: https://arxiv.org/pdf/1804.05938.pdf
+    """
+
+    def __init__(self, config: BertConfig):
+        super(ListwiseDLACrossEncoder, self).__init__(config)
+        self.max_weight = 10
+
+    def get_loss(self, outputs: PBMCrossEncoderOutput, batch: dict) -> DLALoss:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+
+        examination_weights = self._normalize_weights(
+            outputs.examination.reshape(-1),
+            self.max_weight,
+            segments=batch["query_id"],
+            softmax=True,
+        )
+
+        relevance_weights = self._normalize_weights(
+            outputs.relevance.reshape(-1),
+            self.max_weight,
+            segments=batch["query_id"],
+            softmax=True,
+        )
+
+        examination_labels = examination_weights * batch["clicks"].reshape(-1)
+        relevance_labels = relevance_weights * batch["clicks"].reshape(-1)
+
+        examination_loss = rax.softmax_loss(
+            scores=outputs.examination.reshape(-1),
+            labels=relevance_labels,
+            label_fn=partial(normalize_probabilities, segments=batch["query_id"]),
+            segments=batch["query_id"],
+        )
+        relevance_loss = rax.softmax_loss(
+            scores=outputs.relevance.reshape(-1),
+            labels=examination_labels,
+            label_fn=partial(normalize_probabilities, segments=batch["query_id"]),
+            segments=batch["query_id"],
+        )
+
+        return DLALoss(
+            loss=mlm_loss + examination_loss + relevance_loss,
+            mlm_loss=mlm_loss,
+            click_loss=examination_loss + relevance_loss,
+            examination_loss=examination_loss,
+            relevance_loss=relevance_loss,
+        )
+
+    def _normalize_weights(
+        self,
+        scores: Array,
+        max_weight: float,
+        segments: Array,
+        softmax: bool = False,
+    ) -> Array:
+        """
+        Converts logits to normalized propensity weights by:
+        1. [Optional] Apply a softmax to all scores in a ranking (ignoring masked values)
+        2. Normalize the resulting probabilities by the first item in each ranking
+        3. Invert propensities to obtain weights: e.g., propensity 0.5 -> weight 2
+        4. [Optional] Clip the final weights to reduce variance
+        """
+
+        if softmax:
+            probabilities = segment_softmax(scores, segments=segments)
+        else:
+            probabilities = scores
+
+        # Normalize propensities by the item in first position in each segment and convert propensities
+        # to weights by computing weights as 1 / propensities:
+        fism = first_item_segment_mask(segments)
+        ssm = same_segment_mask(segments)
+        weights =  probabilities @ jnp.where(fism[:, jnp.newaxis], ssm, jnp.zeros_like(ssm)) / probabilities
+        # Mask padding and apply clipping
+        weights = weights.clip(min=0, max=max_weight)
+
+        return stop_gradient(weights)
