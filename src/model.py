@@ -2,9 +2,11 @@ from typing import Dict
 
 import flax.linen as nn
 import jax
+from jax._src.lax.lax import stop_gradient
 import jax.numpy as jnp
 import optax
 import rax
+from rax._src.utils import normalize_probabilities
 from jax import Array
 from jax.random import KeyArray
 from transformers import FlaxBertForPreTraining
@@ -348,3 +350,99 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
             mlm_loss=mlm_loss,
             click_loss=click_loss,
         )
+
+
+class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
+    """
+    Implementation of the Dual Learning Algorithm from Ai et al, 2018: https://arxiv.org/pdf/1804.05938.pdf
+    """
+
+    def __init__(self, config: BertConfig):
+        super(ListwiseDLACrossEncoder, self).__init__(config)
+        self.max_weight = 10
+    
+    def get_loss(self, outputs: PBMCrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
+        mlm_loss = self.get_mlm_loss(outputs, batch)
+
+        examination_weights = self._normalize_weights(
+            outputs.examination, where, self.max_weight, softmax=True
+        )
+
+        click_loss = rax.softmax_loss(
+            outputs.click.reshape(-1),
+            batch["clicks"].reshape(-1),
+            segments=batch["query_id"],
+        )
+
+        return CrossEncoderLoss(
+            loss=mlm_loss + click_loss,
+            mlm_loss=mlm_loss,
+            click_loss=click_loss,
+        )
+
+    def dual_learning_algorithm(
+        self,
+        examination: Array,
+        relevance: Array,
+        labels: Array,
+        where: Array,
+        max_weight: float = 10,
+        reduce_fn: Optional[Callable] = jnp.mean,
+    ) -> Array:
+        examination_weights = self._normalize_weights(
+            examination, where, max_weight, softmax=True
+        )
+        relevance_weights = self._normalize_weights(
+            relevance, where, max_weight, softmax=True
+        )
+
+        examination_loss = rax.softmax_loss(
+            scores=examination,
+            labels=labels,
+            where=where,
+            weights=relevance_weights,
+            label_fn=normalize_probabilities,   
+            reduce_fn=reduce_fn,
+        )
+        relevance_loss = rax.softmax_loss(
+            relevance,
+            labels,
+            where=where,
+            weights=examination_weights,
+            label_fn=normalize_probabilities,
+            reduce_fn=reduce_fn,
+        )
+
+        return examination_loss + relevance_loss
+
+
+    def _normalize_weights(
+        self,
+        scores: Array,
+        where: Array,
+        max_weight: float,
+        softmax: bool = False,
+    ) -> Array:
+        """
+        Converts logits to normalized propensity weights by:
+        1. [Optional] Apply a softmax to all scores in a ranking (ignoring masked values)
+        2. Normalize the resulting probabilities by the first item in each ranking
+        3. Invert propensities to obtain weights: e.g., propensity 0.5 -> weight 2
+        4. [Optional] Clip the final weights to reduce variance
+        """
+
+        if softmax:
+            scores = jnp.where(where, scores, -jnp.ones_like(scores) * jnp.inf)
+            probabilities = nn.softmax(scores, axis=-1)
+        else:
+            probabilities = scores
+
+        # Normalize propensities by the item in first position and convert propensities
+        # to weights by computing weights as 1 / propensities:
+        weights = probabilities[:, 0].reshape(-1, 1) / probabilities
+
+        # Mask padding and apply clipping
+        weights = jnp.where(where, weights, jnp.ones_like(scores))
+        weights = weights.clip(min=0, max=max_weight)
+
+        return stop_gradient(weights)
