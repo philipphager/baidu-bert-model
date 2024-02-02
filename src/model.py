@@ -2,14 +2,14 @@ from typing import Dict
 
 import flax.linen as nn
 import jax
-from jax._src.lax.lax import stop_gradient
 import jax.numpy as jnp
 import optax
 import rax
-from rax._src.utils import normalize_probabilities
-from rax._src.segment_utils import segment_softmax
 from jax import Array
+from jax._src.lax.lax import stop_gradient
 from jax.random import KeyArray
+from rax._src.segment_utils import segment_softmax
+from rax._src.utils import normalize_probabilities
 from transformers import FlaxBertForPreTraining
 from transformers.models.bert.configuration_bert import BertConfig
 
@@ -341,7 +341,7 @@ class IPSCrossEncoder(CrossEncoder):
     def get_propensities(path, positions=50):
         propensities = jnp.zeros(positions)
         data = jnp.load(path)
-        return propensities.at[1:len(data) + 1].set(data)
+        return propensities.at[1 : len(data) + 1].set(data)
 
 
 class ListwiseIPSCrossEncoder(IPSCrossEncoder):
@@ -380,30 +380,36 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
     def __init__(self, config: BertConfig):
         super(ListwiseDLACrossEncoder, self).__init__(config)
         self.max_weight = 10
-    
+
     def get_loss(self, outputs: PBMCrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         examination_weights = self._normalize_weights(
-            outputs.examination.reshape(-1), self.max_weight, segments=batch["query_id"], softmax=True
+            outputs.examination.reshape(-1),
+            self.max_weight,
+            segments=batch["query_id"],
+            softmax=True,
         )
 
         relevance_weights = self._normalize_weights(
-            outputs.relevance.reshape(-1), self.max_weight, segments=batch["query_id"], softmax=True
+            outputs.relevance.reshape(-1),
+            self.max_weight,
+            segments=batch["query_id"],
+            softmax=True,
         )
 
         examination_loss = rax.softmax_loss(
             scores=outputs.examination.reshape(-1),
             labels=batch["clicks"].reshape(-1),
             weights=relevance_weights,
-            label_fn=normalize_probabilities,   
+            label_fn=normalize_probabilities,
             segments=batch["query_id"],
         )
         relevance_loss = rax.softmax_loss(
             scores=outputs.relevance.reshape(-1),
             labels=batch["clicks"].reshape(-1),
             weights=examination_weights,
-            label_fn=normalize_probabilities,   
+            label_fn=normalize_probabilities,
             segments=batch["query_id"],
         )
 
@@ -414,7 +420,6 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
             examination_loss=examination_loss,
             relevance_loss=relevance_loss,
         )
-
 
     def _normalize_weights(
         self,
@@ -432,7 +437,7 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
         """
 
         if softmax:
-            probabilities = segment_softmax(scores, segments = segments)
+            probabilities = segment_softmax(scores, segments=segments)
         else:
             probabilities = scores
 
