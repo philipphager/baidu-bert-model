@@ -366,11 +366,11 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         examination_weights = self._normalize_weights(
-            outputs.examination, self.max_weight, segments=batch["query_id"], softmax=True
+            outputs.examination.reshape(-1), self.max_weight, segments=batch["query_id"], softmax=True
         )
 
         relevance_weights = self._normalize_weights(
-            outputs.relevance, self.max_weight, segments=batch["query_id"], softmax=True
+            outputs.relevance.reshape(-1), self.max_weight, segments=batch["query_id"], softmax=True
         )
 
         examination_loss = rax.softmax_loss(
@@ -417,7 +417,7 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
 
         # Normalize propensities by the item in first position and convert propensities
         # to weights by computing weights as 1 / propensities:
-        weights = probabilities[:, 0].reshape(-1, 1) / probabilities
+        weights = probabilities[0] / probabilities
 
         # Mask padding and apply clipping
         weights = weights.clip(min=0, max=max_weight)
