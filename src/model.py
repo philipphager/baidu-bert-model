@@ -9,7 +9,7 @@ from functools import partial
 from jax import Array
 from jax._src.lax.lax import stop_gradient
 from jax.random import KeyArray
-from rax._src.segment_utils import segment_softmax
+from rax._src.segment_utils import segment_softmax, first_item_segment_mask, same_segment_mask
 from rax._src.utils import normalize_probabilities
 from transformers import FlaxBertForPreTraining
 from transformers.models.bert.configuration_bert import BertConfig
@@ -447,7 +447,9 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
 
         # Normalize propensities by the item in first position and convert propensities
         # to weights by computing weights as 1 / propensities:
-        weights = 1 / probabilities
+        fism = first_item_segment_mask(segments)
+        ssm = same_segment_mask(segments)
+        weights =  probabilities[fism] @ ssm[fism] / probabilities
         # Mask padding and apply clipping
         weights = weights.clip(min=0, max=max_weight)
 
