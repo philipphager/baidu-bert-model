@@ -187,7 +187,7 @@ def collate_for_rels(
     collated = {"tokens": [], 
                 "attention_mask": [], 
                 "token_types": [],
-                "label": [],
+                "labels": [],
                 "frequency_bucket":[],}
     
 
@@ -197,7 +197,7 @@ def collate_for_rels(
                                         np.asarray([special_tokens["SEP"]])])
         query_token_types = [segment_types["QUERY"]] * len(query_tokens)
 
-        collated["label"].append(b["label"])
+        collated["labels"].append(b["label"])
         collated["frequency_bucket"].append(b["frequency_bucket"])
         
         for k in range(b["n"]):
@@ -221,7 +221,7 @@ def collate_for_rels(
         "tokens": np.stack(collated["tokens"], axis=0),
         "attention_mask": np.stack(collated["attention_mask"], axis=0),
         "token_types": np.stack(collated["token_types"], axis=0),
-        "labels": np.concatenate(collated["label"]),
+        "labels": np.concatenate(collated["labels"]),
         "frequency_bucket": np.asarray(collated["frequency_bucket"]),
     }
 
@@ -262,7 +262,7 @@ def collate_for_clicks(
             collated["attention_mask"].append(tokens > special_tokens["PAD"])
             collated["query_id"].append(b["query_id"])
             collated["click"].append(b["click"][k])
-            collated["position"].append(b["position"][k])
+            collated["positions"].append(b["position"][k])
 
     return {
         "query_id": np.asarray(collated["query_id"]),
@@ -270,7 +270,7 @@ def collate_for_clicks(
         "attention_mask": np.stack(collated["attention_mask"], axis=0),
         "token_types": np.stack(collated["token_types"], axis=0),
         "clicks": np.asarray(collated["click"]),
-        "positions": np.asarray(collated["position"]),
+        "positions": np.asarray(collated["positions"]),
     }
 
 class LabelEncoder:
