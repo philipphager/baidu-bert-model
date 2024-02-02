@@ -301,15 +301,15 @@ class IPSCrossEncoder(CrossEncoder):
         self.max_weight = 10
 
     def get_loss(self, outputs: CrossEncoderOutput, batch: dict) -> CrossEncoderLoss:
+        examination = self.propensities[batch["positions"]].reshape(-1)
+
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
-        weights = 1 / self.propensities[batch["positions"]].reshape(-1)
-        weights = weights.clip(max=self.max_weight)
-
-        click_loss = rax.pointwise_sigmoid_loss(
-            outputs.click.reshape(-1),
-            batch["clicks"].reshape(-1),
-            weights=weights,
+        click_loss = self.pointwise_sigmoid_ips(
+            examination=examination,
+            relevance=outputs.click.reshape(-1),
+            labels=batch["clicks"].reshape(-1),
+            max_weight=self.max_weight,
         ).mean()
 
         return CrossEncoderLoss(
@@ -317,6 +317,25 @@ class IPSCrossEncoder(CrossEncoder):
             mlm_loss=mlm_loss,
             click_loss=click_loss,
         )
+
+    @staticmethod
+    def pointwise_sigmoid_ips(
+        examination: Array,
+        relevance: Array,
+        labels: Array,
+        max_weight: float = 10,
+    ) -> Array:
+        """
+        Numerically stable implementation of the pointwise IPS loss from Saito et al.:
+        https://dl.acm.org/doi/abs/10.1145/3336191.3371783
+        """
+        weights = 1 / examination
+        weights = weights.clip(min=0, max=max_weight)
+
+        log_p = jax.nn.log_sigmoid(relevance)
+        log_not_p = jax.nn.log_sigmoid(-relevance)
+
+        return -(weights * labels) * log_p - (1.0 - (weights * labels)) * log_not_p
 
     @staticmethod
     def get_propensities(path, positions=50):
