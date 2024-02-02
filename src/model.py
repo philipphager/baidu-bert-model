@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import optax
 import rax
+from functools import partial
 from jax import Array
 from jax._src.lax.lax import stop_gradient
 from jax.random import KeyArray
@@ -359,11 +360,11 @@ class ListwiseIPSCrossEncoder(IPSCrossEncoder):
         weights = weights.clip(max=self.max_weight)
 
         labels = weights * batch["clicks"].reshape(-1)
-        labels = normalize_probabilities(labels, segments=batch["query_id"])
 
         click_loss = rax.softmax_loss(
             scores=outputs.click.reshape(-1),
             labels=labels,
+            label_fn=partial(normalize_probabilities, segments=batch["query_id"]),
             segments=batch["query_id"],
         )
 
@@ -400,18 +401,19 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
             softmax=True,
         )
 
+        examination_labels = examination_weights * batch["clicks"].reshape(-1)
+        relevance_labels = relevance_weights * batch["clicks"].reshape(-1)
+
         examination_loss = rax.softmax_loss(
             scores=outputs.examination.reshape(-1),
-            labels=batch["clicks"].reshape(-1),
-            weights=relevance_weights,
-            label_fn=normalize_probabilities,
+            labels=relevance_labels,
+            label_fn=partial(normalize_probabilities, segments=batch["query_id"]),
             segments=batch["query_id"],
         )
         relevance_loss = rax.softmax_loss(
             scores=outputs.relevance.reshape(-1),
-            labels=batch["clicks"].reshape(-1),
-            weights=examination_weights,
-            label_fn=normalize_probabilities,
+            labels=examination_labels,
+            label_fn=partial(normalize_probabilities, segments=batch["query_id"]),
             segments=batch["query_id"],
         )
 
@@ -445,8 +447,7 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
 
         # Normalize propensities by the item in first position and convert propensities
         # to weights by computing weights as 1 / propensities:
-        weights = probabilities[0] / probabilities
-
+        weights = 1 / probabilities
         # Mask padding and apply clipping
         weights = weights.clip(min=0, max=max_weight)
 
