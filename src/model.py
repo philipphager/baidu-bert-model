@@ -7,6 +7,7 @@ import jax.numpy as jnp
 import optax
 import rax
 from rax._src.utils import normalize_probabilities
+from rax._src.segment_utils import segment_softmax
 from jax import Array
 from jax.random import KeyArray
 from transformers import FlaxBertForPreTraining
@@ -365,62 +366,40 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
         mlm_loss = self.get_mlm_loss(outputs, batch)
 
         examination_weights = self._normalize_weights(
-            outputs.examination, where, self.max_weight, softmax=True
+            outputs.examination, self.max_weight, segments=batch["query_id"], softmax=True
         )
 
-        click_loss = rax.softmax_loss(
-            outputs.click.reshape(-1),
-            batch["clicks"].reshape(-1),
+        relevance_weights = self._normalize_weights(
+            outputs.relevance, self.max_weight, segments=batch["query_id"], softmax=True
+        )
+
+        examination_loss = rax.softmax_loss(
+            scores=outputs.examination.reshape(-1),
+            labels=batch["clicks"].reshape(-1),
+            weights=relevance_weights,
+            label_fn=normalize_probabilities,   
+            segments=batch["query_id"],
+        )
+        relevance_loss = rax.softmax_loss(
+            scores=outputs.relevance.reshape(-1),
+            labels=batch["clicks"].reshape(-1),
+            weights=examination_weights,
+            label_fn=normalize_probabilities,   
             segments=batch["query_id"],
         )
 
         return CrossEncoderLoss(
-            loss=mlm_loss + click_loss,
+            loss=mlm_loss + examination_loss + relevance_loss,
             mlm_loss=mlm_loss,
-            click_loss=click_loss,
+            click_loss=examination_loss + relevance_loss,
         )
-
-    def dual_learning_algorithm(
-        self,
-        examination: Array,
-        relevance: Array,
-        labels: Array,
-        where: Array,
-        max_weight: float = 10,
-        reduce_fn: Optional[Callable] = jnp.mean,
-    ) -> Array:
-        examination_weights = self._normalize_weights(
-            examination, where, max_weight, softmax=True
-        )
-        relevance_weights = self._normalize_weights(
-            relevance, where, max_weight, softmax=True
-        )
-
-        examination_loss = rax.softmax_loss(
-            scores=examination,
-            labels=labels,
-            where=where,
-            weights=relevance_weights,
-            label_fn=normalize_probabilities,   
-            reduce_fn=reduce_fn,
-        )
-        relevance_loss = rax.softmax_loss(
-            relevance,
-            labels,
-            where=where,
-            weights=examination_weights,
-            label_fn=normalize_probabilities,
-            reduce_fn=reduce_fn,
-        )
-
-        return examination_loss + relevance_loss
 
 
     def _normalize_weights(
         self,
         scores: Array,
-        where: Array,
         max_weight: float,
+        segments: Array,
         softmax: bool = False,
     ) -> Array:
         """
@@ -432,8 +411,7 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
         """
 
         if softmax:
-            scores = jnp.where(where, scores, -jnp.ones_like(scores) * jnp.inf)
-            probabilities = nn.softmax(scores, axis=-1)
+            probabilities = segment_softmax(scores, segments = segments)
         else:
             probabilities = scores
 
@@ -442,7 +420,6 @@ class ListwiseDLACrossEncoder(ListwisePBMCrossEncoder):
         weights = probabilities[:, 0].reshape(-1, 1) / probabilities
 
         # Mask padding and apply clipping
-        weights = jnp.where(where, weights, jnp.ones_like(scores))
         weights = weights.clip(min=0, max=max_weight)
 
         return stop_gradient(weights)
