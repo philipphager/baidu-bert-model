@@ -325,16 +325,20 @@ class IPSCrossEncoder(CrossEncoder):
         relevance: Array,
         labels: Array,
         max_weight: float = 10,
+        eps: float = 1.0e-9,
     ) -> Array:
         """
-        Numerically stable implementation of the pointwise IPS loss from Saito et al.:
+        Pointwise IPS loss as in Bekker et al.:
+        https://arxiv.org/pdf/1809.03207.pdf
+        and Saito et al.:
         https://dl.acm.org/doi/abs/10.1145/3336191.3371783
         """
         weights = 1 / examination
         weights = weights.clip(min=0, max=max_weight)
 
-        log_p = jax.nn.log_sigmoid(relevance)
-        log_not_p = jax.nn.log_sigmoid(-relevance)
+        scores = jax.nn.sigmoid(relevance)
+        log_p = jnp.log(scores.clip(min=eps))
+        log_not_p = jnp.log((1 - scores).clip(min=eps))
 
         return -(weights * labels) * log_p - (1.0 - (weights * labels)) * log_not_p
 
