@@ -28,7 +28,7 @@ def load_clicks(config: DictConfig, split: str):
         return batch
 
     dataset = load_dataset(
-        "philipphager/baidu-ultr_baidu-mlm-ctr",
+        "philipphager/baidu-ultr_uva-mlm-ctr",
         name="clicks",
         split=split,
         cache_dir=config.cache_dir,
@@ -46,7 +46,7 @@ def load_annotations(config: DictConfig, split="test"):
         return batch
 
     dataset = load_dataset(
-        "philipphager/baidu-ultr_baidu-mlm-ctr",
+        "philipphager/baidu-ultr_uva-mlm-ctr",
         name="annotations",
         split=split,
         cache_dir=config.cache_dir,
@@ -70,7 +70,7 @@ def main(config: DictConfig):
     )
     collate_clicks = lambda batch: collate_for_clicks(batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES)
     click_loader = DataLoader(test_clicks, 
-                              batch_size = config.per_device_eval_batch_size,# * jax.device_count(), 
+                              batch_size = config.per_device_eval_batch_size,
                               collate_fn=collate_clicks)
 
     collate_rels = lambda batch: collate_for_rels(batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES)
