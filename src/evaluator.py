@@ -78,9 +78,8 @@ class Evaluator:
     @partial(jax.jit, static_argnums = (0, 1))
     def _eval_step_clicks(self, model, params, batch):
         outputs = model.forward(batch, params = params, train=False)
-        metric_dict = {metric_name: metric(outputs.click.squeeze(), 
+        return {metric_name: metric(outputs.click.squeeze(), 
                                                     batch["clicks"],) 
                                 for metric_name, metric in self.click_metrics.items()}
-        return metric_dict | {"click_loss": model.get_loss(outputs, batch).click_loss}
 
 
