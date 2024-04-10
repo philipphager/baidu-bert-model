@@ -85,7 +85,7 @@ class FlaxPreTrainedCrossEncoder(FlaxPreTrainedModel):
     def __call__(
         self,
         batch: Dict,
-        train: bool,
+        train: bool = False,
         params: Dict = None,
         dropout_rng: Optional[jax.random.PRNGKey] = None,
     ):
@@ -101,4 +101,26 @@ class FlaxPreTrainedCrossEncoder(FlaxPreTrainedModel):
             batch=batch,
             train=train,
             rngs=rngs,
+        )
+
+    def predict_relevance(
+        self,
+        batch: Dict,
+        train: bool = False,
+        params: Dict = None,
+        dropout_rng: Optional[jax.random.PRNGKey] = None,
+    ):
+        # Handle any PRNG if needed
+        rngs = {}
+        if dropout_rng is not None:
+            rngs["dropout"] = dropout_rng
+
+        inputs = {"params": params or self.params}
+
+        return self.module.apply(
+            inputs,
+            batch=batch,
+            train=False,
+            rngs=rngs,
+            method=self.module.predict_relevance,
         )

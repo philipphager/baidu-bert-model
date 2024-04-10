@@ -1,3 +1,5 @@
+from typing import Dict
+
 import flax.linen as nn
 import jax.numpy as jnp
 import rax
@@ -55,6 +57,28 @@ class CrossEncoderModule(nn.Module):
             logits=logits,
             query_document_embedding=query_document_embedding,
         )
+
+    def predict_relevance(
+        self,
+        batch: Dict,
+        train: bool,
+        **kwargs,
+    ):
+        outputs = self.bert(
+            input_ids=batch["tokens"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_types"],
+            deterministic=not train,
+            output_hidden_states=True,
+            return_dict=True,
+            **kwargs,
+        )
+
+        # Click / relevance prediction based on the CLS token
+        query_document_embedding = outputs.last_hidden_state[:, 0]
+        click_scores = self.click_head(query_document_embedding)
+
+        return click_scores
 
 
 class CrossEncoder(FlaxPreTrainedCrossEncoder):
