@@ -32,6 +32,7 @@ class Trainer:
         weight_decay: float,
         max_steps: int,
         log_metrics: bool,
+        log_steps: int,
         progress_bar: bool = True,
         **kwargs,
     ):
@@ -46,6 +47,7 @@ class Trainer:
         self.max_steps = max_steps
         self.progress_bar = progress_bar
         self.log_metrics = log_metrics
+        self.log_steps = log_steps
         self.mean_losses = None
 
     def train(
@@ -71,18 +73,18 @@ class Trainer:
 
         return flax.jax_utils.unreplicate(state)
 
-    def track(self, step: int, losses: CrossEncoderLoss, log_steps: int = 1_000):
+    def track(self, step: int, losses: CrossEncoderLoss):
         self.mean_losses = (
             self.mean_losses + losses.mean()
             if self.mean_losses is not None
             else losses.mean()
         )
 
-        if self.log_metrics and step % log_steps == 0:
+        if self.log_metrics and step % self.log_steps == 0:
             metrics = {"train/global_step": step}
 
             for metric, loss in self.mean_losses.__dict__.items():
-                mean_loss = jax.device_get(loss / min(step + 1, log_steps))
+                mean_loss = jax.device_get(loss / min(step + 1, self.log_steps))
                 metrics[f"train/{metric}"] = mean_loss
 
             wandb.log(metrics)

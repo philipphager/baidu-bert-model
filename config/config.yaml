@@ -13,6 +13,7 @@ per_device_eval_batch_size: 6
 progress_bar: False
 resume_from_checkpoint: False
 log_metrics: True
+log_steps: 1_000
 
 hf_hub_push: False
 hf_hub_user: None
