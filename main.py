@@ -47,7 +47,6 @@ def main(config: DictConfig):
     )
 
     model = instantiate(config.model)
-
     trainer = Trainer(**OmegaConf.to_container(config))
 
     if config.log_metrics:
@@ -60,6 +59,13 @@ def main(config: DictConfig):
             save_code=True,
         )
     trained_state = trainer.train(model, train_loader)
+
+    if config.hf_hub_push:
+        model.push_to_hub(
+            f"{config.hf_hub_user}/{config.hf_hub_model}",
+            token=config.hf_hub_token,
+        )
+
     checkpoints.save_checkpoint(
         ckpt_dir=config.output_dir,
         target=trained_state,

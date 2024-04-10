@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - data: base
-  - model: bert
+  - model: cross-encoder
   - user_const
 
 seed: 2024
@@ -14,5 +14,10 @@ progress_bar: False
 resume_from_checkpoint: False
 log_metrics: True
 
-wandb_project_name: baidu-bert-model
+hf_hub_push: False
+hf_hub_user: None
+hf_hub_model: None
+hf_hub_token: None
+
+wandb_project_name: baidu-bert-refactor-test
 wandb_entity: cm-offline-metrics
