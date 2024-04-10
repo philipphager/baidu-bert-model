@@ -13,7 +13,7 @@ from flax.training.train_state import TrainState
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.model import BertLoss
+from src.model.struct import BertLoss
 
 logger = logging.getLogger("rich")
 
@@ -56,8 +56,8 @@ class Trainer:
         key, init_key = jax.random.split(key, 2)
         init_batch = next(iter(train_loader))
         state = TrainState.create(
-            apply_fn=model.forward,
-            params=model.init(init_key, init_batch),
+            apply_fn=model.__call__,
+            params=model.params,
             tx=self.optimizer,
         )
         state = flax.jax_utils.replicate(state)
@@ -98,7 +98,10 @@ class Trainer:
 
         def loss_fn(params):
             outputs = state.apply_fn(
-                batch, params=params, train=True, rngs={"dropout": dropout_rng}
+                batch=batch,
+                params=params,
+                train=True,
+                dropout_rng=dropout_rng,
             )
             losses = model.get_loss(outputs, batch)
             return losses.loss, losses
