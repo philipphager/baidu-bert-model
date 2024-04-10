@@ -55,7 +55,6 @@ class Trainer:
     ) -> TrainState:
         key = jax.random.PRNGKey(self.seed)
         key, init_key = jax.random.split(key, 2)
-        init_batch = next(iter(train_loader))
         state = TrainState.create(
             apply_fn=model.__call__,
             params=model.params,
