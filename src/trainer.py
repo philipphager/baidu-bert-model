@@ -1,4 +1,3 @@
-import enum
 import logging
 from functools import partial
 from typing import Tuple
@@ -16,12 +15,6 @@ from tqdm import tqdm
 from src.model.struct import CrossEncoderLoss
 
 logger = logging.getLogger("rich")
-
-
-class Stage(str, enum.Enum):
-    TRAIN = "train"
-    VAL = "val"
-    TEST = "test"
 
 
 class Trainer:
