@@ -1,4 +1,0 @@
-defaults:
-  - cross-encoder
-
-_target_: src.model.ListwisePBMCrossEncoder
