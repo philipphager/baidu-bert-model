@@ -49,26 +49,12 @@ class DLACrossEncoderOutput(BertOutput):
 
 
 @flax.struct.dataclass
-class BertLoss:
-    loss: Array = jnp.zeros(1)
-    mlm_loss: Array = jnp.zeros(1)
-
-    def add(self, losses):
-        return self.__class__(
-            loss=self.loss + losses.loss, mlm_loss=self.mlm_loss + losses.mlm_loss
-        )
-
-    def mean(self):
-        return self.__class__(loss=self.loss.mean(), mlm_loss=self.mlm_loss.mean())
-
-
-@flax.struct.dataclass
-class CrossEncoderLoss(BertLoss):
+class CrossEncoderLoss:
     loss: Array = jnp.zeros(1)
     mlm_loss: Array = jnp.zeros(1)
     click_loss: Array = jnp.zeros(1)
 
-    def add(self, losses):
+    def __add__(self, losses):
         return self.__class__(
             loss=self.loss + losses.loss,
             mlm_loss=self.mlm_loss + losses.mlm_loss,
@@ -91,7 +77,7 @@ class DLALoss(CrossEncoderLoss):
     examination_loss: Array = jnp.zeros(1)
     relevance_loss: Array = jnp.zeros(1)
 
-    def add(self, losses):
+    def __add__(self, losses):
         return self.__class__(
             loss=self.loss + losses.loss,
             mlm_loss=self.mlm_loss + losses.mlm_loss,
