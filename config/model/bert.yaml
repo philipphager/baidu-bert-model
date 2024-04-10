@@ -1,8 +1,0 @@
-_target_: src.model.BertModel
-
-config:
-  _target_: transformers.BertConfig
-  vocab_size: 22_000
-  num_hidden_layers: 12
-  num_attention_heads: 12
-  hidden_size: 768
