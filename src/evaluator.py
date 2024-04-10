@@ -1,15 +1,16 @@
-from tqdm import tqdm
-import numpy as np
-import jax
 from functools import partial
 from typing import List, Dict
-import pandas as pd
 
-from flax.training import checkpoints
+import jax
+import numpy as np
+import pandas as pd
 from torch.utils.data import DataLoader
+from tqdm import tqdm
+
 
 def dict_to_numpy(_dict: Dict[str, jax.Array]) -> Dict[str, np.ndarray]:
     return {k: jax.device_get(v) for k, v in _dict.items()}
+
 
 def collect_metrics(results: List[Dict[str, jax.Array]]) -> pd.DataFrame:
     """
@@ -23,8 +24,9 @@ def collect_metrics(results: List[Dict[str, jax.Array]]) -> pd.DataFrame:
     # Convert Jax Arrays to numpy:
     np_results = [dict_to_numpy(r) for r in results]
     # Unroll values in batches into individual rows:
-    df = pd.DataFrame(np_results, dtype = np.float32)
+    df = pd.DataFrame(np_results, dtype=np.float32)
     return df.explode(column=list(df.columns)).reset_index(drop=True)
+
 
 class Evaluator:
     def __init__(
@@ -32,26 +34,24 @@ class Evaluator:
         click_metrics: dict,
         rel_metrics: dict,
         ckpt_dir: str,
-        seed: int = 2024,
-        progress_bar: bool = True,
-        **kwargs,
+        seed: int,
+        progress_bar: bool,
     ):
         self.click_metrics = click_metrics
         self.rel_metrics = rel_metrics
         self.ckpt_dir = ckpt_dir
         self.seed = seed
         self.progress_bar = progress_bar
-    
+
     def eval_rels(
         self,
         model,
         loader: DataLoader,
     ) -> pd.DataFrame:
         metrics = []
-        params = checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=None)["params"]
 
         for batch in tqdm(loader, disable=not self.progress_bar):
-            metrics.append(self._eval_step_rels(model, params, batch))
+            metrics.append(self._eval_step_rels(model, batch))
 
         return collect_metrics(metrics)
 
@@ -61,25 +61,29 @@ class Evaluator:
         loader: DataLoader,
     ) -> pd.DataFrame:
         metrics = []
-        params = checkpoints.restore_checkpoint(ckpt_dir=self.ckpt_dir, target=None)["params"]
 
         for batch in tqdm(loader, disable=not self.progress_bar):
-            metrics.append(self._eval_step_clicks(model, params, batch))
+            metrics.append(self._eval_step_clicks(model, batch))
 
         return collect_metrics(metrics)
 
+    @partial(jax.jit, static_argnums=(0, 1))
+    def _eval_step_rels(self, model, batch):
+        relevance = model.predict_relevance(batch, train=False)
 
-    @partial(jax.jit, static_argnums = (0, 1))
-    def _eval_step_rels(self, model, params, batch):
-        relevances = model.predict_relevance(batch, params = params)
-        return {metric_name: metric(relevances.squeeze(), batch["labels"]) 
-                for metric_name, metric in self.rel_metrics.items()}
+        return {
+            metric_name: metric(relevance.squeeze(), batch["labels"])
+            for metric_name, metric in self.rel_metrics.items()
+        }
 
-    @partial(jax.jit, static_argnums = (0, 1))
-    def _eval_step_clicks(self, model, params, batch):
-        outputs = model.forward(batch, params = params, train=False)
-        return {metric_name: metric(outputs.click.squeeze(), 
-                                                    batch["clicks"],) 
-                                for metric_name, metric in self.click_metrics.items()}
+    @partial(jax.jit, static_argnums=(0, 1))
+    def _eval_step_clicks(self, model, batch):
+        outputs = model(batch, train=False)
 
-
+        return {
+            metric_name: metric(
+                outputs.click.squeeze(),
+                batch["clicks"],
+            )
+            for metric_name, metric in self.click_metrics.items()
+        }
