@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - data: base
-  - model: cross-encoder
+  - model: naive-pointwise
   - user_const
 
 seed: 2024
