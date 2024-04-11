@@ -4,7 +4,7 @@ This repository contains code to train flax-based MonoBERT ranking models from s
 ## Setup
 1. We recommend installing dependencies using [Mamba](https://mamba.readthedocs.io/en/latest/user_guide/mamba.html): `mamba env create --file environment.yaml`
 2. Next, download the Baidu ULTR dataset for training. We [upload the first 125 partitions here](https://huggingface.co/datasets/philipphager/baidu-ultr-pretrain/tree/main). Afterwards, update project config with your dataset path under `config/user_const.yaml`.
-3. Lastly, you can find the training scripts used for training our BERTs on SLURM under `scipts/` and you can run them, e.g., using: `sbatch scripts/cross-encoder.sh`
+3. You can train our BERTs on a SLURM cluster using, e.g.: `sbatch scripts/train.sh cross-encoder`. The last argument selects the ranking objective, which is one of: `[cross-encoder, listwise-cross-encoder, pbm, dla, pointwise-ips, listwise-ips]`.
 
 ## Using pretrained models
 ```Python
