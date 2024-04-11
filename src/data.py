@@ -155,7 +155,7 @@ def format_input(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Format BERT model input as:
-    [CLS] + query + [SEP] + title + [SEP] + content + [SEP] + [PAD]
+    [CLS] + query + [SEP] + title + [SEP] + abstract + [SEP] + [PAD]
     """
     CLS = special_tokens["CLS"]
     SEP = special_tokens["SEP"]
