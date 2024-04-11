@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 
 import flax
@@ -75,11 +76,11 @@ def main(config: DictConfig):
         random_state=config.seed,
         test_size=0.5,
     )
-    collate_clicks = lambda batch: collate_for_clicks(
-        batch,
-        MAX_SEQUENCE_LENGTH,
-        SPECIAL_TOKENS,
-        SEGMENT_TYPES,
+    collate_clicks = partial(
+        collate_for_clicks,
+        max_tokens=MAX_SEQUENCE_LENGTH,
+        special_tokens=SPECIAL_TOKENS,
+        segment_types=SEGMENT_TYPES,
     )
     click_loader = DataLoader(
         test_clicks,
@@ -89,11 +90,11 @@ def main(config: DictConfig):
 
     # Load test set of expert annotations
     test_rels = load_annotations(config)
-    collate_rels = lambda batch: collate_for_rels(
-        batch,
-        MAX_SEQUENCE_LENGTH,
-        SPECIAL_TOKENS,
-        SEGMENT_TYPES,
+    collate_rels = partial(
+        collate_for_rels,
+        max_tokens=MAX_SEQUENCE_LENGTH,
+        special_tokens=SPECIAL_TOKENS,
+        segment_types=SEGMENT_TYPES,
     )
     rels_loader = DataLoader(test_rels, batch_size=1, collate_fn=collate_rels)
 
