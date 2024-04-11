@@ -8,7 +8,7 @@ import pyarrow_hotfix
 import torch
 from datasets import load_dataset
 from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 
 flax.config.update('flax_use_orbax_checkpointing', False)
@@ -67,6 +67,7 @@ def main(config: DictConfig):
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
 
+    # Load test clicks
     test_clicks = load_clicks(config, split="test")
     _, test_clicks = random_split(
         test_clicks,
@@ -75,7 +76,10 @@ def main(config: DictConfig):
         test_size=0.5,
     )
     collate_clicks = lambda batch: collate_for_clicks(
-        batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES
+        batch,
+        MAX_SEQUENCE_LENGTH,
+        SPECIAL_TOKENS,
+        SEGMENT_TYPES,
     )
     click_loader = DataLoader(
         test_clicks,
@@ -83,12 +87,18 @@ def main(config: DictConfig):
         collate_fn=collate_clicks,
     )
 
+    # Load test set of expert annotations
+    test_rels = load_annotations(config)
     collate_rels = lambda batch: collate_for_rels(
         batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES
+        batch,
+        MAX_SEQUENCE_LENGTH,
+        SPECIAL_TOKENS,
+        SEGMENT_TYPES,
     )
-    test_rels = load_annotations(config)
     rels_loader = DataLoader(test_rels, batch_size=1, collate_fn=collate_rels)
 
+    # Download model checkpoint from huggingface
     model = instantiate(config.model)
     model = model.from_pretrained(f"{config.hf_hub_user}/{config.hf_hub_model}")
 
