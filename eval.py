@@ -90,7 +90,6 @@ def main(config: DictConfig):
     # Load test set of expert annotations
     test_rels = load_annotations(config)
     collate_rels = lambda batch: collate_for_rels(
-        batch, MAX_SEQUENCE_LENGTH, SPECIAL_TOKENS, SEGMENT_TYPES
         batch,
         MAX_SEQUENCE_LENGTH,
         SPECIAL_TOKENS,
