@@ -22,7 +22,7 @@ from src.const import (
     REL_METRICS,
 )
 from src.evaluator import Evaluator
-from src.data import LabelEncoder, collate_for_clicks, collate_for_rels, random_split
+from src.data import LabelEncoder, collate_rel_fn, random_split, collate_click_fn
 
 
 def load_clicks(config: DictConfig, split: str):
@@ -77,7 +77,7 @@ def main(config: DictConfig):
         test_size=0.5,
     )
     collate_clicks = partial(
-        collate_for_clicks,
+        collate_click_fn,
         max_tokens=MAX_SEQUENCE_LENGTH,
         special_tokens=SPECIAL_TOKENS,
         segment_types=SEGMENT_TYPES,
@@ -91,7 +91,7 @@ def main(config: DictConfig):
     # Load test set of expert annotations
     test_rels = load_annotations(config)
     collate_rels = partial(
-        collate_for_rels,
+        collate_rel_fn,
         max_tokens=MAX_SEQUENCE_LENGTH,
         special_tokens=SPECIAL_TOKENS,
         segment_types=SEGMENT_TYPES,
