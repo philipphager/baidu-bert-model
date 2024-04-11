@@ -6,9 +6,36 @@ This repository contains code to train flax-based MonoBERT ranking models from s
 2. Next, download the Baidu ULTR dataset for training. We [upload the first 125 partitions here](https://huggingface.co/datasets/philipphager/baidu-ultr-pretrain/tree/main). Afterwards, update project config with your dataset path under `config/user_const.yaml`.
 3. Lastly, you can find the training scripts used for training our BERTs on SLURM under `scipts/` and you can run them, e.g., using: `sbatch scripts/cross-encoder.sh`
 
-## Download pretrained models
-```
+## Using pretrained models
+```Python
+from datasets import load_dataset
+from torch.utils.data import DataLoader
+from src.data import collate_click_fn
+from src.model import CrossEncoder
 
+# As an example, we use a smaller click dataset based on Baidu ULTR:
+dataset = load_dataset(
+    "philipphager/baidu-ultr_baidu-mlm-ctr",
+    name="clicks",
+    split="test",
+    trust_remote_code=True,
+)
+
+click_loader = DataLoader(
+    test_clicks,
+    batch_size=64,
+    collate_fn=collate_click_fn,
+)
+
+# Download model from HuggingFace hub:
+model = CrossEncoder.from_pretrained("philipphager/<model-name-here>")
+
+# Use model for click / relevance prediction
+batch = next(iter(click_loader))
+model(batch)
+
+# Use model only for relevance prediction, e.g., for evaluation:
+model.predict_relevance(batch)
 ```
 
 ## Architecture
