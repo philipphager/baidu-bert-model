@@ -15,7 +15,7 @@ from src.model import CrossEncoder
 
 # As an example, we use a smaller click dataset based on Baidu ULTR:
 dataset = load_dataset(
-    "philipphager/baidu-ultr_baidu-mlm-ctr",
+    "philipphager/baidu-ultr_uva-mlm-ctr",
     name="clicks",
     split="test",
     trust_remote_code=True,
