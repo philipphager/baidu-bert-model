@@ -57,3 +57,6 @@ We use a pointwise binary cross-entropy loss and a listwise softmax cross-entrop
   year = {2024},
 }
 ```
+
+## License
+This project uses the [MIT License](https://github.com/philipphager/baidu-bert-model/blob/main/LICENSE).
