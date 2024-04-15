@@ -1,4 +1,4 @@
 defaults:
-  - bert
+  - base
 
 _target_: src.model.ListwiseCrossEncoder

@@ -1,4 +1,4 @@
 defaults:
-  - cross-encoder
+  - base
 
 _target_: src.model.DLACrossEncoder
