@@ -4,3 +4,4 @@ config:
   num_hidden_layers: 12
   num_attention_heads: 12
   hidden_size: 768
+name: ??? # Model name used on huggingface hub and w&b

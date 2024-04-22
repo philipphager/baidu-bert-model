@@ -2,3 +2,4 @@ defaults:
   - base
 
 _target_: src.model.IPSCrossEncoder
+name: ips-pointwise

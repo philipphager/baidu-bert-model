@@ -2,3 +2,4 @@ defaults:
   - base
 
 _target_: src.model.ListwiseCrossEncoder
+name: naive-listwise
