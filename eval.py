@@ -10,7 +10,7 @@ import torch
 import wandb
 from datasets import load_dataset
 from hydra.utils import instantiate
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 
 flax.config.update('flax_use_orbax_checkpointing', False)
