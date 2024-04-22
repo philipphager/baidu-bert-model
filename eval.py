@@ -7,6 +7,7 @@ import numpy as np
 import pyarrow
 import pyarrow_hotfix
 import torch
+import wandb
 from datasets import load_dataset
 from hydra.utils import instantiate
 from omegaconf import DictConfig
