@@ -110,6 +110,14 @@ def main(config: DictConfig):
         progress_bar=config.progress_bar,
     )
 
+    wandb.init(
+        project=config.wandb_project_name,
+        entity=config.wandb_entity,
+        sync_tensorboard=False,
+        config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
+        name=config.model.name,
+    )
+
     clicks_df = evaluator.eval_clicks(model, click_loader)
     rels_df = evaluator.eval_rels(model, rels_loader)
     clicks_df.to_parquet(Path(config.output_dir) / "test_click.parquet")
