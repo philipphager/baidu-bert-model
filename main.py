@@ -55,7 +55,7 @@ def main(config: DictConfig):
             entity=config.wandb_entity,
             sync_tensorboard=False,
             config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
-            name=config.run_name,
+            name=config.model.name,
             save_code=True,
         )
     trained_state = trainer.train(model, train_loader)
