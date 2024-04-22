@@ -17,8 +17,8 @@ log_steps: 1_000
 
 hf_hub_push: False
 hf_hub_user: None
-hf_hub_model: None
 hf_hub_token: None
+hf_hub_model: "uva-bert-${model.name}"
 
 wandb_project_name: baidu-bert-refactor-test
 wandb_entity: cm-offline-metrics
