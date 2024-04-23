@@ -61,9 +61,13 @@ def main(config: DictConfig):
     trained_state = trainer.train(model, train_loader)
 
     if config.hf_hub_push:
-        model.push_to_hub(
-            f"{config.hf_hub_user}/{config.hf_hub_model}",
+        model.save_pretrained(
+            save_directory=config.output_dir,
+            params=trained_state.params,
+            push_to_hub=True,
+            repo_id=f"{config.hf_hub_user}/{config.hf_hub_model}",
             token=config.hf_hub_token,
+            safe_serialization=True,
         )
 
     checkpoints.save_checkpoint(
