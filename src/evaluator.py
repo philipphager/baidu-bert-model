@@ -52,7 +52,9 @@ class Evaluator:
         metrics = []
 
         for batch in tqdm(loader, disable=not self.progress_bar):
-            metrics.append(self._eval_step_rels(model, batch))
+            metrics.append(
+                self._eval_step_rels(model, params=model.params, batch=batch)
+            )
             wandb.log(metrics[-1])
 
         return collect_metrics(metrics)
@@ -65,14 +67,16 @@ class Evaluator:
         metrics = []
 
         for batch in tqdm(loader, disable=not self.progress_bar):
-            metrics.append(self._eval_step_clicks(model, batch))
+            metrics.append(
+                self._eval_step_clicks(model, params=model.params, batch=batch)
+            )
             wandb.log(metrics[-1])
 
         return collect_metrics(metrics)
 
     @partial(jax.jit, static_argnums=(0, 1))
-    def _eval_step_rels(self, model, batch):
-        relevance = model.predict_relevance(batch, train=False)
+    def _eval_step_rels(self, model, params, batch):
+        relevance = model.predict_relevance(batch, params=params, train=False)
 
         return {
             metric_name: metric(relevance.squeeze(), batch["labels"])
@@ -80,8 +84,8 @@ class Evaluator:
         }
 
     @partial(jax.jit, static_argnums=(0, 1))
-    def _eval_step_clicks(self, model, batch):
-        outputs = model(batch, train=False)
+    def _eval_step_clicks(self, model, params, batch):
+        outputs = model(batch=batch, params=params, train=False)
 
         return {
             metric_name: metric(

@@ -120,7 +120,7 @@ class FlaxPreTrainedCrossEncoder(FlaxPreTrainedModel):
         return self.module.apply(
             inputs,
             batch=batch,
-            train=False,
+            train=train,
             rngs=rngs,
             method=self.module.predict_relevance,
         )
