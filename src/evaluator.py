@@ -4,7 +4,6 @@ from typing import List, Dict
 import jax
 import numpy as np
 import pandas as pd
-import wandb
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -55,7 +54,6 @@ class Evaluator:
             metrics.append(
                 self._eval_step_rels(model, params=model.params, batch=batch)
             )
-            wandb.log(metrics[-1])
 
         return collect_metrics(metrics)
 
@@ -70,7 +68,6 @@ class Evaluator:
             metrics.append(
                 self._eval_step_clicks(model, params=model.params, batch=batch)
             )
-            wandb.log(metrics[-1])
 
         return collect_metrics(metrics)
 
