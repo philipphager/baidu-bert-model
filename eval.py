@@ -7,10 +7,9 @@ import numpy as np
 import pyarrow
 import pyarrow_hotfix
 import torch
-import wandb
 from datasets import load_dataset
 from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 
 flax.config.update('flax_use_orbax_checkpointing', False)
@@ -109,14 +108,6 @@ def main(config: DictConfig):
         ckpt_dir=config.output_dir,
         seed=config.seed,
         progress_bar=config.progress_bar,
-    )
-
-    wandb.init(
-        project=config.wandb_project_name,
-        entity=config.wandb_entity,
-        sync_tensorboard=False,
-        config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
-        name=config.model.name,
     )
 
     clicks_df = evaluator.eval_clicks(model, click_loader)
