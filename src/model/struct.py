@@ -33,7 +33,8 @@ class PBMCrossEncoderOutput(CrossEncoderOutput):
 
 
 @flax.struct.dataclass
-class IPSCrossEncoderOutput(BertOutput):
+class IPSCrossEncoderOutput(CrossEncoderOutput):
+    click: Array
     relevance: Array
     examination: Array
     logits: Array

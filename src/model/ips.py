@@ -5,6 +5,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 import pandas as pd
 from jax import Array
+from jax.scipy.special import logit
 
 from src.model.base import FlaxPreTrainedCrossEncoder
 from src.model.cross_encoder import (
@@ -58,8 +59,10 @@ class IPSCrossEncoderModule(CrossEncoderModule):
 
         examination = self.propensities(batch, training=train)
         relevance = cross_encoder_output.relevance
+        click = logit(examination * nn.sigmoid(relevance))
 
         return IPSCrossEncoderOutput(
+            click=click,
             relevance=relevance,
             examination=examination,
             logits=cross_encoder_output.logits,
