@@ -52,8 +52,8 @@ class CrossEncoderModule(nn.Module):
         click_scores = self.click_head(query_document_embedding)
 
         return CrossEncoderOutput(
-            click=click_scores,
-            relevance=click_scores,
+            click=click_scores.reshape(-1),
+            relevance=click_scores.reshape(-1),
             logits=logits,
             query_document_embedding=query_document_embedding,
         )
@@ -78,7 +78,7 @@ class CrossEncoderModule(nn.Module):
         query_document_embedding = outputs.last_hidden_state[:, 0]
         click_scores = self.click_head(query_document_embedding)
 
-        return click_scores
+        return click_scores.reshape(-1)
 
 
 class CrossEncoder(FlaxPreTrainedCrossEncoder):

@@ -23,7 +23,7 @@ class PBMCrossEncoderModule(CrossEncoderModule):
     ):
         cross_encoder_output = super().__call__(batch, train, **kwargs)
 
-        examination = self.propensities(batch["positions"])
+        examination = self.propensities(batch["positions"]).reshape(-1)
         relevance = cross_encoder_output.relevance
         click = examination + relevance
 
