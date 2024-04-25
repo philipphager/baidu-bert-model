@@ -43,8 +43,8 @@ def pointwise_sigmoid_ips(
     weights = 1 / outputs.examination
     weights = weights.clip(min=0, max=max_weight)
 
-    labels = weights * batch["clicks"]
-    scores = jax.nn.sigmoid(outputs.relevance)
+    labels = weights * batch["clicks"].reshape(-1)
+    scores = jax.nn.sigmoid(outputs.relevance.reshape(-1))
     log_p = jnp.log(scores.clip(min=eps))
     log_not_p = jnp.log((1 - scores).clip(min=eps))
 
