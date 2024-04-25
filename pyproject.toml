@@ -26,6 +26,9 @@ scikit-learn = "^1.4"
 wandb = "^0.16"
 huggingface-hub = "^0.22"
 pandas = "^2.2"
+pyarrow = "^16.0.0"
+pyarrow-hotfix = "^0.6"
+datasets = "^2.19.0"
 
 [[tool.poetry.source]]
 name = "jax_cuda"
