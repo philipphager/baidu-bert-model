@@ -44,8 +44,16 @@ class CrossEncoderModule(nn.Module):
             **kwargs,
         )
 
+        if self.config.tie_word_embeddings:
+            shared_embedding = self.bert.variables["params"]["embeddings"]["word_embeddings"]["embedding"]
+        else:
+            shared_embedding = None
+
         # Masked language modeling task
-        logits = self.mlm_head(outputs.last_hidden_state)
+        logits = self.mlm_head(
+            outputs.last_hidden_state,
+            shared_embedding=shared_embedding,
+        )
 
         # Click / relevance prediction based on the CLS token
         query_document_embedding = outputs.last_hidden_state[:, 0]
