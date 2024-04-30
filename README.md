@@ -60,7 +60,7 @@ model.predict_relevance(batch)
 The basis for all ranking models in this repository is a [MonoBERT cross-encoder architecture](https://arxiv.org/pdf/1910.14424.pdf). In a cross-encoder, the user query and each candidate document are concatenated as the BERT input and the CLS token is used to predict query-document relevance. We train BERT models from scratch using a masked language modeling objective by randomly masking the model input and training the model to predict missing tokens. We tune the CLS token to predict query-document relevance using ranking objectives on user clicks. We display a rough sketch of the model architecture below:
 
 <p align="center">
-  <img src='https://github.com/philipphager/baidu-bert-model/assets/9155371/2c0a6c09-a9c5-4e09-bd1a-d7af9daac079' width='600'>
+  <img src='https://github.com/philipphager/baidu-bert-model/assets/9155371/7971d24c-1ad4-4559-ba58-11f1d4970519' width='600'>
 </p>
 
 We use a pointwise binary cross-entropy loss and a listwise softmax cross-entropy loss as our main ranking losses. We implement several unbiased learning to rank methods for position bias mitigation in click data, including a Two-Tower/PBM objective, inverse propensity scoring (IPS), and the dual learning algorithm (DLA). For more details see our paper or inspect our loss functions at `src/loss.py`.
