@@ -21,4 +21,4 @@ hf_hub_token: None
 hf_hub_model: "uva-bert-${model.name}"
 
 wandb_project_name: baidu-bert-hf
-wandb_entity: cm-offline-metrics
+wandb_entity: None
