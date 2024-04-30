@@ -1,5 +1,5 @@
 
-dataset_directory: "/beegfs/scratch/user/rdeffaye/baidu-ultr/"
-output_dir: "/beegfs/scratch/user/rdeffaye/baidu-bert/runs/listwise-naive/"
-cache_dir: "/beegfs/scratch/user/rdeffaye/baidu-bert/datasets/"
+dataset_directory: "path/to/baidu-ultr-pretrain/dataset/"
+output_dir: "path/to/store/output/model/"
+cache_dir: "path/to/store/huggingface/datasets/"
 dataloader_num_workers: 6
