@@ -2,7 +2,9 @@
 This repository contains code to train flax-based MonoBERT ranking models from scratch for the large-scale Baidu-ULTR search dataset. The repository is part of a [larger reproducibility study](https://philipphager.github.io/assets/papers/2024-sigir-ultr-meets-reality.pdf) of unbiased learning-to-rank methods on the Baidu-ULTR datasets.
 
 ## Setup
-1. We recommend installing dependencies using [Mamba](https://mamba.readthedocs.io/en/latest/user_guide/mamba.html): `mamba env create --file environment.yaml`
+1. We recommend installing dependencies using either
+     - [Mamba](https://github.com/conda-forge/miniforge): `mamba env create --file environment.yaml`; or
+     - [Poetry](https://python-poetry.org/): `poetry install`.
 2. Next, download the Baidu ULTR dataset for training. We [upload the first 125 partitions here](https://huggingface.co/datasets/philipphager/baidu-ultr-pretrain/tree/main). Afterwards, update project config with your dataset path under `config/user_const.yaml`.
 3. You can train our BERTs on a SLURM cluster using, e.g.: `sbatch scripts/train.sh naive-pointwise`. The last argument selects the ranking objective, which is one of: `[naive-pointwise, naive-listwise, pbm, dla, ips-pointwise, ips-listwise]`.
 
