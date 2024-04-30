@@ -5,6 +5,7 @@ description = "Training BERT-based cross-encoders with ULTR loss functions."
 authors = ["Romain <romain.deffayet@naverlabs.com>", "Philipp <p.k.hager@uva.nl>"]
 license = "MIT"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 
