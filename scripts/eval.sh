@@ -1,11 +1,11 @@
 #!/bin/bash -l
 
-#SBATCH --time=72:00:00
+#SBATCH --time=1:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task 16
-#SBATCH --mem 32GB
-#SBATCH --partition gpu
-#SBATCH --gres=gpu:4
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32GB
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
 
 # Check if arguments were provided:
 if [ -z "$1" ]; then
@@ -18,4 +18,4 @@ model=$1
 source ${HOME}/.bashrc
 mamba activate baidu-bert-model
 
-python main.py data=base model=$model
+python eval.py data=base model=$model $2
