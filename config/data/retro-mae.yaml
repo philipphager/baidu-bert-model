@@ -1,5 +1,0 @@
-_target_: src.retro_mae.data.RetroMAEPretrainDataset
-
-encoder_masking_rate: 0.3
-decoder_masking_rate: 0.5
-decoder_attention_rate: 0.7

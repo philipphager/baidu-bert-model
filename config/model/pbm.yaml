@@ -1,4 +1,5 @@
 defaults:
-  - cross-encoder
+  - base
 
 _target_: src.model.PBMCrossEncoder
+name: twotower

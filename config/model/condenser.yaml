@@ -1,9 +1,0 @@
-defaults:
-  - bert
-
-_target_: src.model.Condenser
-
-config:
-  num_early_layers: 6
-  head_layers: 2
-  do_late_mlm: True

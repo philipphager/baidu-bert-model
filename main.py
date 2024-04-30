@@ -47,7 +47,6 @@ def main(config: DictConfig):
     )
 
     model = instantiate(config.model)
-
     trainer = Trainer(**OmegaConf.to_container(config))
 
     if config.log_metrics:
@@ -56,10 +55,21 @@ def main(config: DictConfig):
             entity=config.wandb_entity,
             sync_tensorboard=False,
             config=OmegaConf.to_container(config, resolve=True, throw_on_missing=True),
-            name=config.run_name,
+            name=config.model.name,
             save_code=True,
         )
     trained_state = trainer.train(model, train_loader)
+
+    if config.hf_hub_push:
+        model.save_pretrained(
+            save_directory=config.output_dir,
+            params=trained_state.params,
+            push_to_hub=True,
+            repo_id=f"{config.hf_hub_user}/{config.hf_hub_model}",
+            token=config.hf_hub_token,
+            safe_serialization=True,
+        )
+
     checkpoints.save_checkpoint(
         ckpt_dir=config.output_dir,
         target=trained_state,

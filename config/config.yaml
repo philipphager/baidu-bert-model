@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - data: base
-  - model: bert
+  - model: naive-pointwise
   - user_const
 
 seed: 2024
@@ -13,6 +13,12 @@ per_device_eval_batch_size: 6
 progress_bar: False
 resume_from_checkpoint: False
 log_metrics: True
+log_steps: 1_000
 
-wandb_project_name: baidu-bert-model
-wandb_entity: cm-offline-metrics
+hf_hub_push: False
+hf_hub_user: None
+hf_hub_token: None
+hf_hub_model: "uva-bert-${model.name}"
+
+wandb_project_name: baidu-bert-hf
+wandb_entity: None

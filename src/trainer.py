@@ -1,4 +1,3 @@
-import enum
 import logging
 from functools import partial
 from typing import Tuple
@@ -13,15 +12,9 @@ from flax.training.train_state import TrainState
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.model import BertLoss
+from src.model.struct import CrossEncoderLoss
 
 logger = logging.getLogger("rich")
-
-
-class Stage(str, enum.Enum):
-    TRAIN = "train"
-    VAL = "val"
-    TEST = "test"
 
 
 class Trainer:
@@ -32,6 +25,7 @@ class Trainer:
         weight_decay: float,
         max_steps: int,
         log_metrics: bool,
+        log_steps: int,
         progress_bar: bool = True,
         **kwargs,
     ):
@@ -46,6 +40,8 @@ class Trainer:
         self.max_steps = max_steps
         self.progress_bar = progress_bar
         self.log_metrics = log_metrics
+        self.log_steps = log_steps
+        self.mean_losses = None
 
     def train(
         self,
@@ -54,14 +50,12 @@ class Trainer:
     ) -> TrainState:
         key = jax.random.PRNGKey(self.seed)
         key, init_key = jax.random.split(key, 2)
-        init_batch = next(iter(train_loader))
         state = TrainState.create(
-            apply_fn=model.forward,
-            params=model.init(init_key, init_batch),
+            apply_fn=model.__call__,
+            params=model.params,
             tx=self.optimizer,
         )
         state = flax.jax_utils.replicate(state)
-        self.mean_losses = model.loss_dataclass()
 
         for step, batch in enumerate(tqdm(train_loader, disable=not self.progress_bar)):
             if step == self.max_steps:
@@ -72,13 +66,22 @@ class Trainer:
 
         return flax.jax_utils.unreplicate(state)
 
-    def track(self, step: int, losses: BertLoss):
-        self.mean_losses = self.mean_losses.add(losses.mean())
+    def track(self, step: int, losses: CrossEncoderLoss):
+        self.mean_losses = (
+            self.mean_losses + losses.mean()
+            if self.mean_losses is not None
+            else losses.mean()
+        )
 
-        if self.log_metrics and step % 1000 == 0:
-            wandb.log({"train/global_step": step} | {f"train/{k}": jax.device_get(v / min(step + 1, 1000)) 
-                                                        for k,v in self.mean_losses.__dict__.items()})
-            self.mean_losses = losses.__class__()
+        if self.log_metrics and step % self.log_steps == 0:
+            metrics = {"train/global_step": step}
+
+            for metric, loss in self.mean_losses.__dict__.items():
+                mean_loss = jax.device_get(loss / min(step + 1, self.log_steps))
+                metrics[f"train/{metric}"] = mean_loss
+
+            wandb.log(metrics)
+            self.mean_losses = None
 
     @partial(
         jax.pmap,
@@ -93,12 +96,15 @@ class Trainer:
         batch: dict,
         step: int,
         key: PRNGKey,
-    ) -> Tuple[TrainState, BertLoss]:
+    ) -> Tuple[TrainState, CrossEncoderLoss]:
         dropout_rng = jax.random.fold_in(key=key, data=step)
 
         def loss_fn(params):
             outputs = state.apply_fn(
-                batch, params=params, train=True, rngs={"dropout": dropout_rng}
+                batch=batch,
+                params=params,
+                train=True,
+                dropout_rng=dropout_rng,
             )
             losses = model.get_loss(outputs, batch)
             return losses.loss, losses

@@ -23,14 +23,18 @@ SEGMENT_TYPES = {
 MISSING_TITLE = b"21429"
 WHAT_OTHER_PEOPLE_SEARCHED_TITLE = b"3742\x0111492\x0112169\x015061\x0116905"
 
-REL_METRICS = {"DCG@1": partial(rax.dcg_metric, topn=1),
-                "DCG@3": partial(rax.dcg_metric, topn=3),
-                "DCG@5": partial(rax.dcg_metric, topn=5),
-                "DCG@10": partial(rax.dcg_metric, topn=10),
-                "MRR@10": partial(rax.mrr_metric, topn=10),
-                "nDCG@10": partial(rax.ndcg_metric, topn=10),}
+REL_METRICS = {
+    "DCG@1": partial(rax.dcg_metric, topn=1),
+    "DCG@3": partial(rax.dcg_metric, topn=3),
+    "DCG@5": partial(rax.dcg_metric, topn=5),
+    "DCG@10": partial(rax.dcg_metric, topn=10),
+    "MRR@10": partial(rax.mrr_metric, topn=10),
+    "nDCG@10": partial(rax.ndcg_metric, topn=10),
+}
 
-CLICK_METRICS = {"log-likelihood": rax.pointwise_sigmoid_loss,}
+CLICK_METRICS = {
+    "log-likelihood": rax.pointwise_sigmoid_loss,
+}
 
 
 class QueryColumns(IntEnum):

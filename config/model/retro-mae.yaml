@@ -1,4 +1,0 @@
-defaults:
-  - bert
-
-_target_: src.retro_mae.model.RetroMAE

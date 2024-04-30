@@ -1,5 +1,0 @@
-defaults:
-  - cross-encoder
-
-_target_: src.model.IPSCrossEncoder
-propensities_path: "propensities/global_all_pairs.npy"
