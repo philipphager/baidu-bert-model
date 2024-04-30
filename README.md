@@ -40,7 +40,7 @@ click_loader = DataLoader(
     collate_fn=collate_click_fn,
 )
 
-# Download model the naive-pointwise model from HuggingFace hub.
+# Download the naive-pointwise model from HuggingFace hub.
 # Note that you have to change the model class for instantiating different models:
 model = CrossEncoder.from_pretrained(
     "philipphager/baidu-ultr_uva-bert_naive-pointwise",
