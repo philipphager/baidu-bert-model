@@ -6,6 +6,19 @@ This repository contains code to train flax-based MonoBERT ranking models from s
 2. Next, download the Baidu ULTR dataset for training. We [upload the first 125 partitions here](https://huggingface.co/datasets/philipphager/baidu-ultr-pretrain/tree/main). Afterwards, update project config with your dataset path under `config/user_const.yaml`.
 3. You can train our BERTs on a SLURM cluster using, e.g.: `sbatch scripts/train.sh naive-pointwise`. The last argument selects the ranking objective, which is one of: `[naive-pointwise, naive-listwise, pbm, dla, ips-pointwise, ips-listwise]`.
 
+## Pre-trained models on HuggingFace Hub
+You can download all pre-trained models from hugging face hub by clicking the model names below. We also list the evaluation results on the Baidu-ULTR test set. Ranking performance is measured in DCG, nDCG, and MRR on expert annotations (6,985 queries). Click prediction performance is measured in log-likelihood on one test partition of user clicks (49,495 queries).
+
+| Model                                                                                          | Log-likelihood | DCG@1 | DCG@3 | DCG@5 | DCG@10 | nDCG@10 | MRR@10 |
+|------------------------------------------------------------------------------------------------|----------------|-------|-------|-------|--------|---------|--------|
+| [Pointwise Naive](https://huggingface.co/philipphager/baidu-ultr_uva-bert_naive-pointwise)     | 0.227          | 1.641 | 3.462 | 4.752 | 7.251  | 0.357   | 0.609  |
+| [Pointwise Two-Tower](https://huggingface.co/philipphager/baidu-ultr_uva-bert_twotower)        | 0.218          | 1.629 | 3.471 | 4.822 | 7.456  | 0.367   | 0.607  |
+| [Pointwise IPS](https://huggingface.co/philipphager/baidu-ultr_uva-bert_ips-pointwise)         | 0.222          | 1.295 | 2.811 | 3.977 | 6.296  | 0.307   | 0.534  |
+| [Listwise Naive](https://huggingface.co/philipphager/baidu-ultr_uva-bert_naive-listwise)       | -              | 1.947 | 4.108 | 5.614 | 8.478  | 0.405   | 0.639  |
+| [Listwise IPS](https://huggingface.co/philipphager/baidu-ultr_uva-bert_ips-listwise)           | -              | 1.671 | 3.530 | 4.873 | 7.450  | 0.361   | 0.603  |
+| [Listwise DLA](https://huggingface.co/philipphager/baidu-ultr_uva-bert_dla)                    | -              | 1.796 | 3.730 | 5.125 | 7.802  | 0.377   | 0.615  |
+
+
 ## Using pretrained models
 ```Python
 from datasets import load_dataset
@@ -27,8 +40,11 @@ click_loader = DataLoader(
     collate_fn=collate_click_fn,
 )
 
-# Download model from HuggingFace hub:
-model = CrossEncoder.from_pretrained("philipphager/<model-name-here>")
+# Download model the naive-pointwise model from HuggingFace hub.
+# Note that you have to change the model class for instantiating different models:
+model = CrossEncoder.from_pretrained(
+    "philipphager/baidu-ultr_uva-bert_naive-pointwise",
+)
 
 # Use model for click / relevance prediction
 batch = next(iter(click_loader))
