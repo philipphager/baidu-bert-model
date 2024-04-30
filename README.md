@@ -6,7 +6,7 @@ This repository contains code to train flax-based MonoBERT ranking models from s
      - [Mamba](https://github.com/conda-forge/miniforge): `mamba env create --file environment.yaml`; or
      - [Poetry](https://python-poetry.org/): `poetry install`.
 2. Next, download the Baidu ULTR dataset for training. We [upload the first 125 partitions here](https://huggingface.co/datasets/philipphager/baidu-ultr-pretrain/tree/main). Afterwards, update project config with your dataset path under `config/user_const.yaml`.
-3. You can train our BERTs on a SLURM cluster using, e.g.: `sbatch scripts/train.sh <model-name>`, where `model-name` selects the ranking objective, e.g.: `[naive-pointwise, naive-listwise, pbm, dla, ips-pointwise, ips-listwise]`
+3. You can train our BERTs on a SLURM cluster using, e.g.: `sbatch scripts/train.sh <model-name>`, where `<model-name>` is the ranking objective, e.g.: `[naive-pointwise, naive-listwise, pbm, dla, ips-pointwise, ips-listwise]`
 5. You can evaluate all pre-trained models by running: `sbatch scripts/eval.sh <model-name>`
 
 ## Pre-trained models on HuggingFace Hub
