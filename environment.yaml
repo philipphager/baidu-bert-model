@@ -23,4 +23,4 @@ dependencies:
     - scikit-learn==1.4.2
     - scipy==1.12.0
     - wandb==0.16
-    - # For jax cuda support run: pip install --upgrade "jax[cuda11_pip]==0.4.13" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    # Run manually for jax cuda support: pip install --upgrade "jax[cuda11_pip]==0.4.13" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
