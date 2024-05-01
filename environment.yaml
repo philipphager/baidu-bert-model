@@ -1,0 +1,26 @@
+name: baidu-bert-model
+channels:
+  - pytorch
+  - nvidia
+  - nvidia/label/cuda-11.8.0
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pytorch=2.1.2
+  - cuda-toolkit=11.8.0
+  - hydra-core=1.3.2
+  - pandas=2.2.0
+  - pyarrow=13.0.0
+  - tqdm=4.66.1
+  - openssl=3.2.0
+  - pip=23.3.2
+  - pip:
+    - transformers[flax]==4.37.1
+    - datasets==2.19.0
+    - flax==0.7.0
+    - huggingface-hub==0.22
+    - rax==0.3
+    - scikit-learn==1.4.2
+    - scipy==1.12.0
+    - wandb==0.16
+    - # For jax cuda support run: pip install --upgrade "jax[cuda11_pip]==0.4.13" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
