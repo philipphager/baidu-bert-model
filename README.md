@@ -11,7 +11,7 @@ This repository contains code to train flax-based MonoBERT ranking models from s
 5. You can evaluate all pre-trained models by running: `sbatch scripts/eval.sh <model-name>`
 
 ## Pre-trained models on HuggingFace Hub
-You can download all pre-trained models from hugging face hub by clicking the model names below. We also list the evaluation results on the Baidu-ULTR test set. Ranking performance is measured in DCG, nDCG, and MRR on expert annotations (6,985 queries). Click prediction performance is measured in log-likelihood on one test partition of user clicks (≈296k queries).
+You can download all pre-trained models from hugging face hub by clicking the model names below. We also list the evaluation results on the Baidu-ULTR test set. Ranking performance is measured in DCG, nDCG, and MRR on expert annotations (6,985 queries). Click prediction performance is measured in log-likelihood on one test partition of user clicks (≈297k queries).
 
 | Model                                                                                          | Log-likelihood | DCG@1 | DCG@3 | DCG@5 | DCG@10 | nDCG@10 | MRR@10 |
 |------------------------------------------------------------------------------------------------|----------------|-------|-------|-------|--------|---------|--------|
